@@ -40,13 +40,13 @@ nav{flex-direction:column;align-items:center;gap:0}
 <canvas id="sky" aria-label="入力した文字が光の花火として夜空に広がります"></canvas>
 <canvas id="veil" aria-hidden="true" style="pointer-events:none;filter:blur(.45px)"></canvas>
 <header><h1>夜花</h1><p>YOBANA</p></header>
-<nav aria-label="音 / Sound"><button id="sound" title="音の切り替え / Toggle sound" aria-label="音 / Sound" aria-pressed="false"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM17 8c2 2 2 6 0 8M20 5c4 4 4 10 0 14"/></svg><span id="sound-state">OFF</span></button><span class="sound-keys">Tab → Space</span></nav>
+<nav aria-label="音 / Sound"><button id="sound" title="音の切り替え / Toggle sound" aria-label="音 / Sound" aria-pressed="true"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM17 8c2 2 2 6 0 8M20 5c4 4 4 10 0 14"/></svg><span id="sound-state">ON</span></button><span class="sound-keys">Tab → Space</span></nav>
 <div id="welcome"><p>光の内側に、咲く。<span class="en">Bloom within the light.</span></p><span>ことばが咲くと、薄い膜がゆれる。<span class="en">As words bloom, a veil of light stirs.</span></span></div>
 <main><label for="words">ことばを、夜空へ。<span class="en">Your words, into the night.</span></label><div class="word-line"><input id="words" aria-label="夜空に打ち上げることば / Words for the night sky" autocomplete="off" spellcheck="false" maxlength="200" autofocus><span class="return-key" aria-hidden="true">↵</span></div><small>変換を確定後、もう一度Enterで打ち上げ<span class="en">Confirm your text, then press Enter to release.</span></small></main>
 <footer><a href="piano-credits.html" target="_blank" rel="noopener">音源<span class="en">Sound credits</span></a></footer>
 <script>
 'use strict';
-const canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d'),field=document.querySelector('input');let W,H,dpr,rockets=[],ascentTrails=[],sparks=[],letters=[],queue=[],soundOn=false,audio,master,reverb,composing=false,lastValue='',nextLaunch=0,last=0,elapsed=0;
+const canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d'),field=document.querySelector('input');let W,H,dpr,rockets=[],ascentTrails=[],sparks=[],letters=[],queue=[],soundOn=true,audio,master,reverb,composing=false,lastValue='',nextLaunch=0,last=0,elapsed=0;
 addEventListener('load',()=>field.focus({preventScroll:true}),{once:true});
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function resize(){W=innerWidth;H=innerHeight;dpr=Math.min(devicePixelRatio||1,2);canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#05080e';ctx.fillRect(0,0,W,H)}addEventListener('resize',resize);resize();
@@ -365,6 +365,13 @@ field.addEventListener('keydown',e=>{
  e.preventDefault();if(!field.value.trim())return;
  addText(field.value);field.value='';lastValue='';
 });
+// Audio starts on an intentional gesture, as required by browser autoplay rules.
+async function unlockDefaultAudio(event){
+ if(!soundOn||event.target.closest?.('#sound')||audio?.state==='running'&&recordings.C4)return;
+ try{initAudio();await audio.resume();await loadRecordings()}catch{ /* Retry on the next gesture. */ }
+}
+addEventListener('keydown',unlockDefaultAudio,{capture:true});
+addEventListener('pointerdown',unlockDefaultAudio,{capture:true});
 document.querySelector('#sound').onclick=async()=>{
  const button=document.querySelector('#sound'),state=document.querySelector('#sound-state');button.disabled=true;
  try{initAudio();await audio.resume();if(!soundOn){state.textContent='…';await loadRecordings()}soundOn=!soundOn;master.gain.setTargetAtTime(soundOn?.24:0,audio.currentTime,.1);if(!soundOn)stopSounds();state.textContent=soundOn?'ON':'OFF';button.setAttribute('aria-pressed',String(soundOn))}
