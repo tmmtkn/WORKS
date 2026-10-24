@@ -1,3 +1,4 @@
+# Deploy the adopted artwork only; source history stays in the repository.
 name: Publish YOBANA
 on:
   push:
