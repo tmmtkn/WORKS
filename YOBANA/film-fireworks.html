@@ -6,58 +6,65 @@
 </style>
 <canvas id="sky" aria-label="入力した文字が光の花火として夜空に広がります"></canvas>
 <canvas id="veil" aria-hidden="true" style="pointer-events:none;filter:blur(.45px)"></canvas>
-<header><h1>夜花</h1><p>YOBANA</p></header><nav aria-label="操作"><button id="demo">ひとひら試す</button><button id="sound" title="柔らかな開花音と火の粉の余韻" aria-pressed="false">音をひらく ○</button><button id="motion" aria-pressed="true">視点をとめる</button><button id="clear" aria-label="夜空をクリア">消す</button><a href="/" target="_blank" rel="noopener" style="font:10px sans-serif;color:#9bafaf;padding:10px;text-decoration:none">花火版 ↗</a></nav>
+<header><h1>夜花</h1><p>YOBANA</p></header><nav aria-label="操作"><button id="demo">ひとひら試す</button><button id="sound" title="ピアノの余韻" aria-pressed="false">音をひらく ○</button><button id="motion" aria-pressed="true">視点をとめる</button><button id="clear" aria-label="夜空をクリア">消す</button><a href="/" target="_blank" rel="noopener" style="font:10px sans-serif;color:#9bafaf;padding:10px;text-decoration:none">花火版 ↗</a></nav>
 <div id="welcome"><p>光の内側に、咲く。</p><span>ことばが咲くと、薄い膜がゆれる。</span></div>
-<main><label class="sr-only" for="words">夜空に打ち上げることば</label><input id="words" placeholder="ことばを入力して、Enter" autocomplete="off" spellcheck="false" maxlength="200"><small>変換を確定後、もう一度Enterで打ち上げ · 音は「音をひらく」から</small></main><footer><span>STUDY 02 — 膜のなかの花火</span><span id="status">夜の余白に、ひとひら。</span></footer>
+<main><label class="sr-only" for="words">夜空に打ち上げることば</label><input id="words" placeholder="ことばを入力して、Enter" autocomplete="off" spellcheck="false" maxlength="200"><small>変換を確定後、もう一度Enterで打ち上げ · 音は「音をひらく」から</small></main><footer><span>STUDY 02 — 膜のなかの花火 · <a href="piano-credits.html" target="_blank" rel="noopener" style="color:inherit">音源</a></span><span id="status">夜の余白に、ひとひら。</span></footer>
 <script>
 'use strict';
 const canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d'),field=document.querySelector('input');let W,H,dpr,rockets=[],ascentTrails=[],sparks=[],letters=[],queue=[],soundOn=false,audio,master,reverb,composing=false,lastValue='',nextLaunch=0,last=0,elapsed=0;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function resize(){W=innerWidth;H=innerHeight;dpr=Math.min(devicePixelRatio||1,2);canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#05080e';ctx.fillRect(0,0,W,H)}addEventListener('resize',resize);resize();
 function hash(s){let h=0;for(const c of s)h=(h*31+c.codePointAt(0))>>>0;return h}
-const activeSounds=new Map(),recordings={};let soundLoading,lastBloom=-1;
+const activeSounds=new Map(),recordings={};let soundLoading;
+let finalePending=false,finaleQuietSince=-1;const finaleVoices=new Set();
+const pianoSamples=[{name:'A3',midi:57},{name:'C4',midi:60},{name:'C5',midi:72}];
 function initAudio(){
  if(audio)return;audio=new (window.AudioContext||window.webkitAudioContext)();master=audio.createGain();master.gain.value=.24;
- const limiter=audio.createDynamicsCompressor();limiter.threshold.value=-18;limiter.knee.value=24;limiter.ratio.value=2;limiter.attack.value=.035;limiter.release.value=.65;master.connect(limiter);limiter.connect(audio.destination);
- // A soft, dark tail follows the real sound, without discrete or pitched echoes.
- reverb=audio.createConvolver();const length=Math.floor(audio.sampleRate*5.2),impulse=audio.createBuffer(2,length,audio.sampleRate);
- for(let c=0;c<2;c++){const data=impulse.getChannelData(c);let low=0;for(let i=0;i<length;i++){low+=.035*((Math.random()*2-1)-low);data[i]=low*Math.pow(1-i/length,2.3)*Math.min(1,i/(audio.sampleRate*.045))*.35}}
- reverb.buffer=impulse;const dark=audio.createBiquadFilter(),wet=audio.createGain();dark.type='lowpass';dark.frequency.value=1100;dark.Q.value=.3;wet.gain.value=.48;reverb.connect(dark);dark.connect(wet);wet.connect(master);
+ const limiter=audio.createDynamicsCompressor();limiter.threshold.value=-18;limiter.knee.value=24;limiter.ratio.value=2;limiter.attack.value=.05;limiter.release.value=.8;master.connect(limiter);limiter.connect(audio.destination);
+ reverb=audio.createConvolver();const length=Math.floor(audio.sampleRate*6.2),impulse=audio.createBuffer(2,length,audio.sampleRate);
+ for(let c=0;c<2;c++){const data=impulse.getChannelData(c);let low=0;for(let i=0;i<length;i++){low+=.05*((Math.random()*2-1)-low);data[i]=low*Math.pow(1-i/length,2.3)*Math.min(1,i/(audio.sampleRate*.06))*.30}}
+ reverb.buffer=impulse;const dark=audio.createBiquadFilter(),wet=audio.createGain();dark.type='lowpass';dark.frequency.value=1800;dark.Q.value=.3;wet.gain.value=.44;reverb.connect(dark);dark.connect(wet);wet.connect(master);
 }
 async function loadRecordings(){
- if(recordings.ascent)return;
- if(!soundLoading)soundLoading=Promise.all(['ascent','bloom-1','bloom-2','bloom-3'].map(async name=>{
- const response=await fetch(`assets/audio/${name}.wav`);if(!response.ok)throw new Error('Audio could not be loaded');
- return [name,await audio.decodeAudioData(await response.arrayBuffer())];
+ if(recordings.C4)return;
+ if(!soundLoading)soundLoading=Promise.all(pianoSamples.map(async sample=>{
+ const response=await fetch(`assets/audio/piano/${sample.name}.mp3`);if(!response.ok)throw new Error('Piano could not be loaded');
+ return [sample.name,await audio.decodeAudioData(await response.arrayBuffer())];
  })).then(entries=>{for(const [name,buffer] of entries)recordings[name]=buffer}).catch(error=>{soundLoading=undefined;throw error});
  await soundLoading;
 }
-function stopSounds(){if(!audio)return;const now=audio.currentTime;for(const [source,gain] of activeSounds){if(gain.gain.cancelAndHoldAtTime)gain.gain.cancelAndHoldAtTime(now);else gain.gain.cancelScheduledValues(now);gain.gain.setTargetAtTime(0,now,.06);try{source.stop(now+.3)}catch{}}}
-function soundVoice(buffer,x,rate=1){
- const now=audio.currentTime,source=audio.createBufferSource(),gain=audio.createGain(),highpass=audio.createBiquadFilter(),warm=audio.createBiquadFilter(),pan=audio.createStereoPanner(),send=audio.createGain();source.buffer=buffer;source.playbackRate.value=rate;
- highpass.type='highpass';highpass.frequency.value=48;highpass.Q.value=.3;
- warm.type='lowpass';warm.Q.value=.25;warm.frequency.setValueAtTime(2600,now);warm.frequency.exponentialRampToValueAtTime(1250,now+6);
- pan.pan.value=Math.max(-.55,Math.min(.55,(x/W-.5)*1.1));send.gain.value=.65;
- source.connect(highpass);highpass.connect(warm);warm.connect(gain);gain.connect(pan);pan.connect(master);pan.connect(send);send.connect(reverb);activeSounds.set(source,gain);
- source.onended=()=>{activeSounds.delete(source);source.disconnect();highpass.disconnect();warm.disconnect();gain.disconnect();pan.disconnect();send.disconnect()};
- return {source,gain,warm,send,now,duration:buffer.duration/rate};
+function stopSounds(){finalePending=false;cancelFinale();if(!audio)return;const now=audio.currentTime;for(const [source,gain] of activeSounds){if(gain.gain.cancelAndHoldAtTime)gain.gain.cancelAndHoldAtTime(now);else gain.gain.cancelScheduledValues(now);gain.gain.setTargetAtTime(0,now,.08);try{source.stop(now+.4)}catch{}}}
+function pianoNote(midi,x,level=.70,delay=0,ending=false){
+ if(!soundOn||!audio||!recordings.C4)return;
+ const sample=pianoSamples.reduce((best,item)=>Math.abs(item.midi-midi)<Math.abs(best.midi-midi)?item:best),rate=2**((midi-sample.midi)/12);
+ const now=audio.currentTime+delay,source=audio.createBufferSource(),gain=audio.createGain(),warm=audio.createBiquadFilter(),pan=audio.createStereoPanner(),send=audio.createGain();source.buffer=recordings[sample.name];source.playbackRate.value=rate;
+ const offset=.006,duration=Math.min(9,(source.buffer.duration-offset)/rate);
+ warm.type='lowpass';warm.Q.value=.3;warm.frequency.setValueAtTime(4400,now);warm.frequency.exponentialRampToValueAtTime(1900,now+duration);
+ // Retain a short, rounded piano attack, then let the recorded strings decay.
+ gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(level,now+.014);gain.gain.exponentialRampToValueAtTime(level*.65,now+.40);gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
+ pan.pan.value=Math.max(-.5,Math.min(.5,(x/W-.5)));send.gain.value=.76;
+ source.connect(warm);warm.connect(gain);gain.connect(pan);pan.connect(master);pan.connect(send);send.connect(reverb);activeSounds.set(source,gain);if(ending)finaleVoices.add(source);
+ source.onended=()=>{activeSounds.delete(source);finaleVoices.delete(source);source.disconnect();warm.disconnect();gain.disconnect();pan.disconnect();send.disconnect()};source.start(now,offset);source.stop(now+duration);
 }
-function tone(h,x,soft=false){
- if(!soundOn||!audio||!recordings['bloom-1'])return;
- let variant=Math.floor(Math.random()*3);if(variant===lastBloom)variant=(variant+1)%3;lastBloom=variant;
- const voice=soundVoice(recordings[`bloom-${variant+1}`],x,.96+Math.random()*.04),{source,gain,now,duration}=voice,level=soft?.4:.78;
- // A gentle opening retains the flower's timing; the real crackling gets space to linger.
- gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(level*.55,now+.065);gain.gain.linearRampToValueAtTime(level*.85,now+.24);gain.gain.linearRampToValueAtTime(level,now+1.15);gain.gain.linearRampToValueAtTime(level*.9,now+3.6);gain.gain.linearRampToValueAtTime(0,now+duration);
- source.start(now);source.stop(now+duration);
+function tone(h,x,soft=false){const palette=[55,60,62,64,67,69];pianoNote(palette[h%palette.length],x,soft?.30:.70)}
+function cancelFinale(){
+ if(audio){const now=audio.currentTime;for(const source of finaleVoices){const gain=activeSounds.get(source);if(gain){if(gain.gain.cancelAndHoldAtTime)gain.gain.cancelAndHoldAtTime(now);else gain.gain.cancelScheduledValues(now);gain.gain.setTargetAtTime(0,now,.08)}try{source.stop(now+.35)}catch{}}}
+ finaleVoices.clear();finaleQuietSince=-1;
 }
-function ascentSound(r){
- if(!soundOn||!audio||!recordings.ascent)return;const point=project(r),voice=soundVoice(recordings.ascent,point?point.x:W/2),{source,gain,warm,send,now,duration}=voice;
- warm.frequency.cancelScheduledValues(now);warm.frequency.setValueAtTime(1100,now);send.gain.value=.10;
- gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(.55,now+.12);gain.gain.setValueAtTime(.55,now+Math.max(.13,duration-.3));gain.gain.linearRampToValueAtTime(0,now+duration);source.start(now);source.stop(now+duration);
+function finishPhrase(){
+ // One short, resolving phrase after the final flower, followed by silence.
+ [64,67,62,60].forEach((note,i)=>pianoNote(note,W/2,[.38,.34,.32,.40][i],[0,.48,1.05,1.85][i],true));
 }
+function updateFinale(){
+ if(!finalePending)return;
+ if(queue.length||rockets.length||sparks.length||letters.length){finaleQuietSince=-1;return}
+ if(finaleQuietSince<0)finaleQuietSince=elapsed;
+ if(elapsed-finaleQuietSince>=.65){finalePending=false;finishPhrase()}
+}
+function ascentSound(r){} // Leave the ascent quiet; the piano opens with the flower.
 const segmenter=new Intl.Segmenter('ja',{granularity:'grapheme'});
 function graphemes(text){return Array.from(segmenter.segment(text),part=>part.segment)}
-function addText(text){const chars=graphemes(text).filter(c=>! /\s/.test(c));queue.push(...chars.slice(0,80));queue=queue.slice(-100);if(chars.length)document.querySelector('#welcome').classList.add('gone')}
+function addText(text){const chars=graphemes(text).filter(c=>! /\s/.test(c));queue.push(...chars.slice(0,80));queue=queue.slice(-100);if(chars.length){cancelFinale();finalePending=true;document.querySelector('#welcome').classList.add('gone')}}
 // All positions and trails live in world space; the camera projects them anew each frame.
 let moving=!reduced, yaw=0,pitch=-.48,cameraDistance=500,pointerX=0,pointerY=0,dragging=false;
 let focusX=0,focusY=70,focusZ=0,shotStart=-100,shotYaw=0,shotPitch=0;
@@ -275,7 +282,7 @@ for(const star of stars){const p=project(star);if(!p)continue;const alpha=(.12+.
 rockets=rockets.filter(r=>{r.age+=dt;const p=Math.min(r.age/r.dur,1),e=p*p*(3-2*p);r.x=r.sx+(r.tx-r.sx)*e+r.bend*Math.sin(p*Math.PI);r.y=r.sy+(r.ty-r.sy)*e;r.z=r.sz+(r.tz-r.sz)*e+Math.sin(p*Math.PI)*60;r.trail.push({x:r.x,y:r.y,z:r.z});if(r.trail.length>150)r.trail.shift();launchRibbon(r);if(p>=1){bloom(r);return false}return true});
 ascentTrails=ascentTrails.filter(r=>{r.age+=dt;if(r.age>1.6)return false;launchRibbon(r,Math.pow(1-r.age/1.6,2));return true});
 sparks=sparks.filter(s=>{s.age+=dt;if(s.age>s.life)return false;const drag=Math.exp(-dt*.4);s.vx*=drag;s.vz*=drag;s.vy=s.vy*drag+dt*4;s.x+=s.vx*dt;s.y+=s.vy*dt;s.z+=s.vz*dt;s.trail.push({x:s.x,y:s.y,z:s.z});if(s.trail.length>40)s.trail.shift();const a=Math.pow(1-Math.max(0,(s.age/s.life-.4)/.6),1.3);const refraction=membraneContact(s.x,s.y,s.z),p=project(s,refraction);if(p&&p.x>-160&&p.x<W+160&&p.y>-160&&p.y<H+160){trace(s.trail,s.hue,a*.78,.63,refraction);const size=Math.max(.5,p.k*(.7+.3*Math.sin(s.age*17+s.seed)));ctx.fillStyle=`hsla(${s.hue},50%,92%,${a*.98})`;ctx.fillRect(p.x,p.y,size,size)}return true});
-letters=letters.filter(l=>{l.age+=dt;if(l.age>6.5)return false;drawWordLight(l);return true});renderMembrane();}
+letters=letters.filter(l=>{l.age+=dt;if(l.age>6.5)return false;drawWordLight(l);return true});renderMembrane();updateFinale();}
 
 requestAnimationFrame(frame);
 let compositionEndedAt=-Infinity;

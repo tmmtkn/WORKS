@@ -1,6 +1,6 @@
 # Recorded fireworks audio
 
-All recordings below are published under CC0 1.0. Copies of the source files are not required at runtime; the edited PCM WAV files are included locally.
+All fireworks recordings listed below are published under CC0 1.0. Copies of the source files are not required at runtime; the edited PCM WAV files are included locally.
 
 ## Bloom and crackling embers
 
@@ -29,3 +29,7 @@ Retrieved 2026-10-24. The v2 saved version plays these as natural fireworks. The
 ## Current sound study in film-fireworks.html
 
 After the visual-v3 checkpoint, this preview returns to the real ascent and bloom recordings, with gradual gain envelopes, gentle high/low-pass filtering and a generated, dark 5.2-second reverberation tail. It does not use granular stretching, pitched oscillators or synthetic crackles. The other preview pages retain their ambient experiments. Original WAV assets are unchanged.
+
+## Piano experiment
+
+The current piano experiment uses a separate CC BY 3.0 piano sample set. See piano/CREDITS.md for its author, license, source and playback adaptations. The fireworks recordings remain available for saved versions but are not played by the piano experiment.
