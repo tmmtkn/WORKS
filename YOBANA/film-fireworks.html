@@ -1,17 +1,53 @@
 <!doctype html>
 <html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#05080e"><title>夜花 — 膜のなかの花火</title>
 <style>
+@font-face{font-family:'Cormorant Garamond';font-style:normal;font-weight:400;font-display:swap;src:url('assets/fonts/CormorantGaramond-Regular.ttf') format('truetype')}
 *{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#05080e;color:#d8dfdf;font-family:Georgia,'Hiragino Mincho ProN','Yu Mincho',serif}canvas{position:absolute;inset:0;width:100%;height:100%}header{position:absolute;top:32px;left:36px;pointer-events:none;text-align:center}h1{font-size:29px;font-weight:400;letter-spacing:.25em;text-indent:.25em;margin:0 0 12px}header p{font:10px sans-serif;letter-spacing:.3em;text-indent:.3em;color:#849698}nav{opacity:.65;transition:opacity .3s;flex-wrap:wrap;justify-content:flex-end;max-width:70%;position:absolute;right:42px;top:40px;display:flex;gap:8px}nav:hover,nav:focus-within{opacity:1}button{color:#a8bbbc;border:0;background:transparent;font:11px sans-serif;letter-spacing:.12em;padding:10px;cursor:pointer}button:hover,button:focus-visible{color:#fff;outline:1px solid #526267}main{position:absolute;bottom:30px;width:min(360px,calc(100% - 48px));left:50%;transform:translateX(-50%);text-align:center}label{display:block;color:#a6b5b7;letter-spacing:.22em;font-size:12px;margin-bottom:5px}input{display:block;width:100%;border:0;border-bottom:1px solid #3c4c5266;color:#e3eceb;background:transparent;text-align:center;font:20px Georgia,'Yu Mincho',serif;letter-spacing:.24em;padding:9px;outline:none;border-radius:0}input:focus{border-color:#8cb3b38a}input::placeholder{color:#687c82;font-size:15px}small{display:block;margin-top:8px;font:10px sans-serif;letter-spacing:.12em;color:#7b8e96;line-height:1.9}footer{position:absolute;bottom:12px;left:48px;right:48px;display:flex;justify-content:space-between;font:9px sans-serif;letter-spacing:.2em;color:#61717b}#welcome{position:absolute;top:38%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;transition:opacity 2s;width:90%}#welcome p{font-size:19px;letter-spacing:.3em;font-weight:400}#welcome span{font-size:11px;letter-spacing:.16em;color:#81969e}.gone{opacity:0}@media(max-width:600px){header{top:25px;left:25px}nav{right:16px;top:20px;gap:4px}main{bottom:32px}footer{left:25px;right:25px}#welcome p{font-size:16px}}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}main small{font-size:9px;opacity:.65}input{font-size:17px;border-bottom-color:#647c7c40}input::placeholder{font-size:13px;color:#8a9b9e}footer{opacity:.5}
+
+.en{display:block;font:9px/1.8 sans-serif;letter-spacing:.08em;opacity:.65;margin-top:4px}nav{max-width:none}#sound{display:flex;align-items:center;gap:9px;font-size:9px}#sound svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}main{bottom:35px}main label{font-size:12px;margin-bottom:9px;color:#9badae}main label .en{font-size:9px}.word-line{position:relative}input{padding:9px 26px}.return-key{position:absolute;right:5px;top:9px;color:#84999c;font:16px sans-serif;opacity:.5;pointer-events:none}main small{opacity:.45;font-size:9px;margin-top:10px;letter-spacing:.04em}main small .en{font-size:8px;margin-top:0}#welcome .en{font-size:9px;letter-spacing:.08em}#welcome p .en{margin-top:10px}footer{left:auto;right:25px;bottom:18px;text-align:right;opacity:.4}footer a{color:inherit;text-decoration:none;font-size:8px;letter-spacing:.08em}footer .en{font-size:7px;margin:0}header p{margin-bottom:0}@media(max-width:600px){main{bottom:35px}footer{right:14px;bottom:9px}}
+
+/* Quiet editorial typography for the English companion text. */
+.en{font-family:'Baskerville','Iowan Old Style','Palatino Linotype','Book Antiqua',Georgia,serif;font-weight:400;font-style:italic;letter-spacing:.055em;line-height:1.85}
+header p{font-family:'Baskerville','Iowan Old Style','Palatino Linotype',Georgia,serif;font-size:10px;letter-spacing:.32em}
+#sound{font-family:'Baskerville','Iowan Old Style','Palatino Linotype',Georgia,serif;letter-spacing:.14em}
+
+.en{font-size:11px;opacity:.82}
+#welcome{display:flex;flex-direction:column;align-items:center}
+#welcome p,#welcome>span{display:block;width:100%;text-align:center}
+#welcome p{margin:0 0 24px;text-indent:.3em}
+#welcome>span{font-size:11px;letter-spacing:.16em;text-indent:.16em}
+#welcome .en{font-size:11px;text-indent:0;letter-spacing:.055em}
+main label .en{font-size:11px}
+main small{opacity:1;color:#a0afb4;font-size:10px}
+main small .en{font-size:10px;color:#a0afb4;opacity:.85;margin-top:3px}
+footer .en{font-size:9px}
+
+:root{--font-ja:'Hiragino Mincho ProN','Yu Mincho','YuMincho',serif;--font-en:'Cormorant Garamond','Baskerville',Georgia,serif}
+html,body,input,label,small,footer,#welcome p,#welcome>span{font-family:var(--font-ja);font-weight:300;font-style:normal}
+h1{font-family:var(--font-ja);font-weight:300;margin-bottom:4px}
+header p{margin-top:0}
+.en,#welcome .en,main label .en,main small .en,footer .en,header p,#sound{font-family:var(--font-en);font-weight:400;font-style:normal;letter-spacing:.085em}
+#welcome p{letter-spacing:.25em;text-indent:.25em}
+
+.en,#welcome .en,main label .en{font-size:12px;letter-spacing:.06em}
+main small .en{font-size:11px}
+header p{font-size:11px;letter-spacing:.25em}
+
+nav{flex-direction:column;align-items:center;gap:0}
+.sound-keys{font:10px var(--font-en);letter-spacing:.04em;color:#829397;opacity:.75;pointer-events:none}
 </style>
 <canvas id="sky" aria-label="入力した文字が光の花火として夜空に広がります"></canvas>
 <canvas id="veil" aria-hidden="true" style="pointer-events:none;filter:blur(.45px)"></canvas>
-<header><h1>夜花</h1><p>YOBANA</p></header><nav aria-label="操作"><button id="demo">ひとひら試す</button><button id="sound" title="ピアノの余韻" aria-pressed="false">音をひらく ○</button><button id="motion" aria-pressed="true">視点をとめる</button><button id="clear" aria-label="夜空をクリア">消す</button><a href="/" target="_blank" rel="noopener" style="font:10px sans-serif;color:#9bafaf;padding:10px;text-decoration:none">花火版 ↗</a></nav>
-<div id="welcome"><p>光の内側に、咲く。</p><span>ことばが咲くと、薄い膜がゆれる。</span></div>
-<main><label class="sr-only" for="words">夜空に打ち上げることば</label><input id="words" placeholder="ことばを入力して、Enter" autocomplete="off" spellcheck="false" maxlength="200"><small>変換を確定後、もう一度Enterで打ち上げ · 音は「音をひらく」から</small></main><footer><span>STUDY 02 — 膜のなかの花火 · <a href="piano-credits.html" target="_blank" rel="noopener" style="color:inherit">音源</a></span><span id="status">夜の余白に、ひとひら。</span></footer>
+<header><h1>夜花</h1><p>YOBANA</p></header>
+<nav aria-label="音 / Sound"><button id="sound" title="音の切り替え / Toggle sound" aria-label="音 / Sound" aria-pressed="false"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM17 8c2 2 2 6 0 8M20 5c4 4 4 10 0 14"/></svg><span id="sound-state">OFF</span></button><span class="sound-keys">Tab → Space</span></nav>
+<div id="welcome"><p>光の内側に、咲く。<span class="en">Bloom within the light.</span></p><span>ことばが咲くと、薄い膜がゆれる。<span class="en">As words bloom, a veil of light stirs.</span></span></div>
+<main><label for="words">ことばを、夜空へ。<span class="en">Your words, into the night.</span></label><div class="word-line"><input id="words" aria-label="夜空に打ち上げることば / Words for the night sky" autocomplete="off" spellcheck="false" maxlength="200" autofocus><span class="return-key" aria-hidden="true">↵</span></div><small>変換を確定後、もう一度Enterで打ち上げ<span class="en">Confirm your text, then press Enter to release.</span></small></main>
+<footer><a href="piano-credits.html" target="_blank" rel="noopener">音源<span class="en">Sound credits</span></a></footer>
 <script>
 'use strict';
 const canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d'),field=document.querySelector('input');let W,H,dpr,rockets=[],ascentTrails=[],sparks=[],letters=[],queue=[],soundOn=false,audio,master,reverb,composing=false,lastValue='',nextLaunch=0,last=0,elapsed=0;
+addEventListener('load',()=>field.focus({preventScroll:true}),{once:true});
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function resize(){W=innerWidth;H=innerHeight;dpr=Math.min(devicePixelRatio||1,2);canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#05080e';ctx.fillRect(0,0,W,H)}addEventListener('resize',resize);resize();
 function hash(s){let h=0;for(const c of s)h=(h*31+c.codePointAt(0))>>>0;return h}
@@ -39,14 +75,23 @@ function pianoNote(midi,x,level=.70,delay=0,ending=false){
  const sample=pianoSamples.reduce((best,item)=>Math.abs(item.midi-midi)<Math.abs(best.midi-midi)?item:best),rate=2**((midi-sample.midi)/12);
  const now=audio.currentTime+delay,source=audio.createBufferSource(),gain=audio.createGain(),warm=audio.createBiquadFilter(),pan=audio.createStereoPanner(),send=audio.createGain();source.buffer=recordings[sample.name];source.playbackRate.value=rate;
  const offset=.006,duration=Math.min(9,(source.buffer.duration-offset)/rate);
- warm.type='lowpass';warm.Q.value=.3;warm.frequency.setValueAtTime(4400,now);warm.frequency.exponentialRampToValueAtTime(1900,now+duration);
- // Retain a short, rounded piano attack, then let the recorded strings decay.
- gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(level,now+.014);gain.gain.exponentialRampToValueAtTime(level*.65,now+.40);gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
+ warm.type='lowpass';warm.Q.value=.3;warm.frequency.setValueAtTime(3300,now);warm.frequency.exponentialRampToValueAtTime(1600,now+duration);
+ // Soften the hammer edge while retaining the recorded piano attack.
+ gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(level*.92,now+.027);gain.gain.exponentialRampToValueAtTime(level*.65,now+.40);gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
  pan.pan.value=Math.max(-.5,Math.min(.5,(x/W-.5)));send.gain.value=.76;
  source.connect(warm);warm.connect(gain);gain.connect(pan);pan.connect(master);pan.connect(send);send.connect(reverb);activeSounds.set(source,gain);if(ending)finaleVoices.add(source);
  source.onended=()=>{activeSounds.delete(source);finaleVoices.delete(source);source.disconnect();warm.disconnect();gain.disconnect();pan.disconnect();send.disconnect()};source.start(now,offset);source.stop(now+duration);
 }
-function tone(h,x,soft=false){const palette=[55,60,62,64,67,69];pianoNote(palette[h%palette.length],x,soft?.30:.70)}
+// Open three-note voicings share a gentle C major / A minor colour.
+// The upper voice carries the phrase; quieter lower voices provide depth.
+function pianoChord(top,x,level,delay=0,ending=false){
+ const supports={55:[48,64],60:[52,67],62:[53,69],64:[48,55],67:[48,64],69:[53,60],71:[55,62],74:[55,64],76:[57,67]};
+ const lower=supports[top]||[48,55];
+ pianoNote(lower[0],x-W*.025,level*.31,delay,ending);
+ pianoNote(lower[1],x+W*.025,level*.25,delay,ending);
+ pianoNote(top,x,level*.68,delay,ending);
+}
+function tone(h,x,soft=false){const palette=[55,60,62,64,67,69];pianoChord(palette[h%palette.length],x,soft?.26:.60)}
 function cancelFinale(){
  if(audio){const now=audio.currentTime;for(const source of finaleVoices){const gain=activeSounds.get(source);if(gain){if(gain.gain.cancelAndHoldAtTime)gain.gain.cancelAndHoldAtTime(now);else gain.gain.cancelScheduledValues(now);gain.gain.setTargetAtTime(0,now,.08)}try{source.stop(now+.35)}catch{}}}
  finaleVoices.clear();finaleQuietSince=-1;
@@ -71,14 +116,16 @@ function buildClosingMelody(){
  return {notes:phrase.notes.slice(),delays:phrase.delays.slice()};
 }
 function finishPhrase(){
+ field.focus({preventScroll:true});
  const melody=buildClosingMelody();
- melody.notes.forEach((note,i)=>pianoNote(note,W/2,[.34,.30,.32,.25][i],melody.delays[i],true));
+ melody.notes.forEach((note,i)=>pianoChord(note,W/2,[.32,.28,.30,.24][i],melody.delays[i],true));
 }
 function updateFinale(){
  if(!finalePending)return;
- if(queue.length||rockets.length||sparks.length||letters.length){finaleQuietSince=-1;return}
+ // Let the closing chords enter while the last sparks are still fading.
+ if(queue.length||rockets.length){finaleQuietSince=-1;return}
  if(finaleQuietSince<0)finaleQuietSince=elapsed;
- if(elapsed-finaleQuietSince>=.65){finalePending=false;finishPhrase()}
+ if(elapsed-finaleQuietSince>=3.2){finalePending=false;finishPhrase()}
 }
 function ascentSound(r){} // Leave the ascent quiet; the piano opens with the flower.
 const segmenter=new Intl.Segmenter('ja',{granularity:'grapheme'});
@@ -91,15 +138,6 @@ let focusX=0,focusY=70,focusZ=0,shotStart=-100,shotYaw=0,shotPitch=0;
 function cameraFrame(){const focal=Math.min(W/1000,H/780)*850;return{x:0,y:70,z:0,distance:focal/(Math.min(W,H)/480)}}
 function fromCamera(x,y,z){const cp=Math.cos(pitch),sp=Math.sin(pitch),cy=Math.cos(yaw),sy=Math.sin(yaw),wy=y*cp+z*sp,wz=-y*sp+z*cp;return{x:x*cy+wz*sy,y:wy+70,z:-x*sy+wz*cy}}
 let launchIndex=0;
-const motionButton=document.querySelector('#motion');
-function motionLabel(){motionButton.textContent=moving?'視点をとめる':'視点をうごかす';motionButton.setAttribute('aria-pressed',String(moving))}motionLabel();
-motionButton.onclick=()=>{moving=!moving;motionLabel()};
-canvas.style.touchAction='none';
-canvas.addEventListener('pointerdown',e=>{dragging=true;canvas.setPointerCapture(e.pointerId)});
-canvas.addEventListener('pointerup',()=>dragging=false);
-canvas.addEventListener('pointercancel',()=>dragging=false);
-addEventListener('pointermove',e=>{if(e.pointerType==='mouse'||dragging){pointerX=(e.clientX/W-.5)*2;pointerY=(e.clientY/H-.5)*2}});
-canvas.addEventListener('pointerleave',()=>{if(!dragging){pointerX=0;pointerY=0}});
 let stageCenterY=H*.35,stageBottom=H*.65;
 const view={cy:1,sy:0,cp:1,sp:0,focal:850};
 function updateView(){view.cy=Math.cos(yaw);view.sy=Math.sin(yaw);view.cp=Math.cos(pitch);view.sp=Math.sin(pitch);view.focal=Math.min(W/1000,H/780)*850}
@@ -129,12 +167,24 @@ const stars=Array.from({length:140},(_,i)=>({x:((i*7919)%1000-500)*3.6,y:((i*357
 function launch(c){
  if(!rockets.length&&!letters.length){shotStart=elapsed;shotYaw=yaw;shotPitch=pitch}
  const h=hash(c),scale=Math.min(W,H)/480,slots=[.16,.84,.36,.66,.5],slot=slots[launchIndex++%slots.length],screenX=Math.max(.1,Math.min(.9,slot+(Math.random()-.5)*.08));
- const target=fromCamera((screenX-.5)*W/scale,(-.30+Math.random()*.34)*H/scale,(Math.random()-.5)*100);
+ // Reserve room for letters already visible and for flowers still ascending.
+ const occupied=[...letters.filter(l=>l.age<4.8),...rockets.map(r=>({x:r.tx,y:r.ty,z:r.tz}))].map(p=>project(p)).filter(Boolean);
+ let target,best=-Infinity;
+ for(let attempt=0;attempt<18;attempt++){
+  const x=attempt===0?screenX:.13+Math.random()*.74;
+  const candidate=fromCamera((x-.5)*W/scale,(-.30+Math.random()*.34)*H/scale,(Math.random()-.5)*100),screen=project(candidate);
+  if(!screen)continue;
+  const separation=occupied.length?Math.min(...occupied.map(p=>Math.hypot((screen.x-p.x)/W,(screen.y-p.y)/H))):1;
+  const inside=screen.x>W*.09&&screen.x<W*.91&&screen.y>H*.08&&screen.y<H*.65;
+  const score=separation-(inside?0:1);
+  if(score>best){best=score;target=candidate}
+ }
+ target=target||fromCamera(0,-H*.12/scale,0);
  // Independent ground origins make crossing, outward and almost vertical launches.
  const origin=fromCamera((Math.random()-.5)*W*.95/scale,H*.47/scale,60+Math.random()*90);
- rockets.push({c,h,x:origin.x,y:origin.y,z:origin.z,sx:origin.x,sy:origin.y,sz:origin.z,tx:target.x,ty:target.y,tz:target.z,bend:(Math.random()-.5)*55,age:0,dur:reduced?.4:2.4+Math.random()*.15,trail:[]});
+ rockets.push({c,h,x:origin.x,y:origin.y,z:origin.z,sx:origin.x,sy:origin.y,sz:origin.z,tx:target.x,ty:target.y,tz:target.z,bend:(Math.random()-.5)*55,age:0,dur:reduced?.4:2.475,trail:[]});
  ascentSound(rockets[rockets.length-1]);
- document.querySelector('#status').textContent='ことばのまわりを、漂う。';
+
 }
 function bloom(r){ascentTrails.push({trail:r.trail,h:r.h,age:0});const hue=[38,192,218,28,270][r.h%5]+(Math.random()-.5)*12,count=reduced?55:240+Math.floor(Math.random()*70),phase=Math.random()*Math.PI*2,lobes=2+Math.floor(Math.random()*5),bands=2+Math.floor(Math.random()*4),speed=95+Math.random()*15,irregularity=.08+Math.random()*.16;membraneEvents.push({x:r.x,y:r.y,z:r.z,hue,at:elapsed,seed:Math.random()*Math.PI*2});membraneEvents=membraneEvents.slice(-8);for(let i=0;i<count;i++){const u=Math.max(-1,Math.min(1,1-2*(i+.5+(Math.random()-.5)*.9)/count)),a=i*2.399963+(Math.random()-.5)*.34,v=speed*(.68+Math.random()*.30)*(1+irregularity*Math.sin(a*lobes+phase)*Math.sin(Math.acos(u)*bands+phase)),rad=Math.sqrt(1-u*u);const vx=Math.cos(a)*rad*v,vy=u*v,vz=Math.sin(a)*rad*v;sparks.push({x:r.x,y:r.y,z:r.z,vx,vy,vz,age:0,life:3.8+Math.random()*2.4,hue,seed:Math.random()*10,trail:[]})}letters.push({c:r.c,x:r.x,y:r.y,z:r.z,sx:r.sx,sz:r.sz,age:0,hue,dots:glyphCloud(r.c)});const screen=project(r);tone(r.h,screen?screen.x:W*.5);sparks=sparks.slice(-2200)}
 // Letters are made of the same small points of light as the bloom.
@@ -283,7 +333,7 @@ const renderMembrane=(()=>{
 })();
 
 function frame(t){requestAnimationFrame(frame);if(document.hidden){last=t;return}const dt=Math.min((t-last)/1000||.016,.04);last=t;elapsed+=dt;
-if(queue.length&&elapsed>nextLaunch){launch(queue.shift());nextLaunch=elapsed+.85}
+if(queue.length&&elapsed>=nextLaunch){const scheduled=nextLaunch;launch(queue.shift());nextLaunch=(elapsed-scheduled>.10?elapsed:scheduled)+.85}
 stageBottom=H;stageCenterY=H*.5;
 if(moving){const smooth=1-Math.exp(-dt*1.6),shotAge=Math.max(0,elapsed-shotStart),orbit=Math.min(shotAge/13,1),ease=orbit*orbit*(3-2*orbit);
  if(shotStart>=0){
@@ -309,16 +359,17 @@ field.addEventListener('compositionstart',()=>{composing=true});
 field.addEventListener('compositionend',()=>{composing=false;compositionEndedAt=performance.now()});
 // Typing and IME confirmation only edit the draft. A separate Enter submits it.
 field.addEventListener('keydown',e=>{
+ if(e.key==='Tab'&&!e.shiftKey){e.preventDefault();document.querySelector('#sound').focus();return}
  if(e.key!=='Enter'||e.repeat)return;
  if(composing||e.isComposing||e.keyCode===229||performance.now()-compositionEndedAt<100)return;
  e.preventDefault();if(!field.value.trim())return;
  addText(field.value);field.value='';lastValue='';
 });
 document.querySelector('#sound').onclick=async()=>{
- const button=document.querySelector('#sound');button.disabled=true;
- try{initAudio();await audio.resume();if(!soundOn){button.textContent='音を準備しています';await loadRecordings()}soundOn=!soundOn;master.gain.setTargetAtTime(soundOn?.24:0,audio.currentTime,.1);if(!soundOn)stopSounds();button.textContent=soundOn?'音をとじる ◉':'音をひらく ○';button.setAttribute('aria-pressed',String(soundOn))}
- catch{button.textContent='音を再読み込み';soundOn=false;button.setAttribute('aria-pressed','false')}finally{button.disabled=false}
+ const button=document.querySelector('#sound'),state=document.querySelector('#sound-state');button.disabled=true;
+ try{initAudio();await audio.resume();if(!soundOn){state.textContent='…';await loadRecordings()}soundOn=!soundOn;master.gain.setTargetAtTime(soundOn?.24:0,audio.currentTime,.1);if(!soundOn)stopSounds();state.textContent=soundOn?'ON':'OFF';button.setAttribute('aria-pressed',String(soundOn))}
+ catch{state.textContent='RETRY';soundOn=false;button.setAttribute('aria-pressed','false')}finally{button.disabled=false;field.focus({preventScroll:true})}
 };
-document.querySelector('#demo').onclick=()=>addText('余白に咲く');document.querySelector('#clear').onclick=()=>{closingPhrase=[];membraneEvents=[];stopSounds();rockets=[];ascentTrails=[];sparks=[];letters=[];queue=[];launchIndex=0;shotStart=-100;field.value='';lastValue='';ctx.clearRect(0,0,W,H);document.querySelector('#welcome').classList.remove('gone');document.querySelector('#status').textContent='夜の余白に、ひとひら。'};
+
 
 </script></html>
