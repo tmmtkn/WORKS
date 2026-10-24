@@ -1,26 +1,53 @@
 <!doctype html>
 <html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#05080e"><title>YOBANA — ことばの花火</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#05080e;color:#d8dfdf;font-family:Georgia,'Hiragino Mincho ProN','Yu Mincho',serif}canvas{position:absolute;inset:0;width:100%;height:100%}header{position:absolute;top:42px;left:48px;pointer-events:none;text-align:center}h1{font-size:32px;font-weight:400;letter-spacing:.25em;text-indent:.25em;margin:0 0 12px}header p{font:10px sans-serif;letter-spacing:.3em;text-indent:.3em;color:#849698}nav{flex-wrap:wrap;justify-content:flex-end;max-width:70%;position:absolute;right:42px;top:40px;display:flex;gap:8px}button{color:#a8bbbc;border:0;background:transparent;font:11px sans-serif;letter-spacing:.12em;padding:10px;cursor:pointer}button:hover,button:focus-visible{color:#fff;outline:1px solid #526267}main{position:absolute;bottom:36px;width:min(420px,calc(100% - 48px));left:50%;transform:translateX(-50%);text-align:center}label{display:block;color:#a6b5b7;letter-spacing:.22em;font-size:12px;margin-bottom:5px}input{display:block;width:100%;border:0;border-bottom:1px solid #3c4c5266;color:#e3eceb;background:transparent;text-align:center;font:20px Georgia,'Yu Mincho',serif;letter-spacing:.24em;padding:9px;outline:none;border-radius:0}input:focus{border-color:#8cb3b38a}input::placeholder{color:#687c82;font-size:15px}small{display:block;margin-top:8px;font:10px sans-serif;letter-spacing:.12em;color:#7b8e96;line-height:1.9}footer{position:absolute;bottom:12px;left:48px;right:48px;display:flex;justify-content:space-between;font:9px sans-serif;letter-spacing:.2em;color:#61717b}#welcome{position:absolute;top:38%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;transition:opacity 2s;width:90%}#welcome p{font-size:19px;letter-spacing:.3em;font-weight:400}#welcome span{font-size:11px;letter-spacing:.16em;color:#81969e}.gone{opacity:0}@media(max-width:600px){header{top:25px;left:25px}nav{right:16px;top:20px;gap:4px}main{bottom:32px}footer{left:25px;right:25px}#welcome p{font-size:16px}}
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#05080e;color:#d8dfdf;font-family:Georgia,'Hiragino Mincho ProN','Yu Mincho',serif}canvas{position:absolute;inset:0;width:100%;height:100%}header{position:absolute;top:32px;left:36px;pointer-events:none;text-align:center}h1{font-size:29px;font-weight:400;letter-spacing:.25em;text-indent:.25em;margin:0 0 12px}header p{font:10px sans-serif;letter-spacing:.3em;text-indent:.3em;color:#849698}nav{opacity:.65;transition:opacity .3s;flex-wrap:wrap;justify-content:flex-end;max-width:70%;position:absolute;right:42px;top:40px;display:flex;gap:8px}nav:hover,nav:focus-within{opacity:1}button{color:#a8bbbc;border:0;background:transparent;font:11px sans-serif;letter-spacing:.12em;padding:10px;cursor:pointer}button:hover,button:focus-visible{color:#fff;outline:1px solid #526267}main{position:absolute;bottom:30px;width:min(360px,calc(100% - 48px));left:50%;transform:translateX(-50%);text-align:center}label{display:block;color:#a6b5b7;letter-spacing:.22em;font-size:12px;margin-bottom:5px}input{display:block;width:100%;border:0;border-bottom:1px solid #3c4c5266;color:#e3eceb;background:transparent;text-align:center;font:20px Georgia,'Yu Mincho',serif;letter-spacing:.24em;padding:9px;outline:none;border-radius:0}input:focus{border-color:#8cb3b38a}input::placeholder{color:#687c82;font-size:15px}small{display:block;margin-top:8px;font:10px sans-serif;letter-spacing:.12em;color:#7b8e96;line-height:1.9}footer{position:absolute;bottom:12px;left:48px;right:48px;display:flex;justify-content:space-between;font:9px sans-serif;letter-spacing:.2em;color:#61717b}#welcome{position:absolute;top:38%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;transition:opacity 2s;width:90%}#welcome p{font-size:19px;letter-spacing:.3em;font-weight:400}#welcome span{font-size:11px;letter-spacing:.16em;color:#81969e}.gone{opacity:0}@media(max-width:600px){header{top:25px;left:25px}nav{right:16px;top:20px;gap:4px}main{bottom:32px}footer{left:25px;right:25px}#welcome p{font-size:16px}}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}main small{font-size:9px;opacity:.65}input{font-size:17px;border-bottom-color:#647c7c40}input::placeholder{font-size:13px;color:#8a9b9e}footer{opacity:.5}
 </style>
 <canvas id="sky" aria-label="入力した文字が光の花火として夜空に広がります"></canvas>
-<header><h1>夜花</h1><p>YOBANA</p></header><nav aria-label="操作"><button id="demo">ひとひら試す</button><button id="sound" aria-pressed="false">音をひらく ○</button><button id="motion" aria-pressed="true">視点をとめる</button><button id="clear" aria-label="夜空をクリア">消す</button></nav>
+<header><h1>夜花</h1><p>YOBANA</p></header><nav aria-label="操作"><button id="demo">ひとひら試す</button><button id="sound" title="実録の打ち上げ・開花・火の粉" aria-pressed="false">音をひらく ○</button><button id="motion" aria-pressed="true">視点をとめる</button><button id="clear" aria-label="夜空をクリア">消す</button></nav>
 <div id="welcome"><p>ことばが、夜にほどける。</p><span>ひと文字ずつ、光と音のかたちに。</span></div>
-<main><label for="words">今、浮かんだことばを。</label><input id="words" placeholder="ここに文字を打つ" autocomplete="off" spellcheck="false" maxlength="200"><small>文字を打つと、夜空に咲きます · 音は「音をひらく」から</small></main><footer><span></span><span id="status">夜の余白に、ひとひら。</span></footer>
+<main><label class="sr-only" for="words">夜空に打ち上げることば</label><input id="words" placeholder="ことばを、夜空へ" autocomplete="off" spellcheck="false" maxlength="200"><small>文字を打つと、夜空に咲きます · 音は「音をひらく」から</small></main><footer><span></span><span id="status">夜の余白に、ひとひら。</span></footer>
 <script>
 'use strict';
 const canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d'),field=document.querySelector('input');let W,H,dpr,rockets=[],ascentTrails=[],sparks=[],letters=[],queue=[],soundOn=false,audio,master,reverb,composing=false,lastValue='',nextLaunch=0,last=0,elapsed=0;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function resize(){W=innerWidth;H=innerHeight;dpr=Math.min(devicePixelRatio||1,2);canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#05080e';ctx.fillRect(0,0,W,H)}addEventListener('resize',resize);resize();
 function hash(s){let h=0;for(const c of s)h=(h*31+c.codePointAt(0))>>>0;return h}
-function initAudio(){if(audio)return;audio=new (window.AudioContext||window.webkitAudioContext)();master=audio.createGain();master.gain.value=.24;const limiter=audio.createDynamicsCompressor();master.connect(limiter);limiter.connect(audio.destination);reverb=audio.createConvolver();const len=audio.sampleRate*3,buffer=audio.createBuffer(2,len,audio.sampleRate);for(let c=0;c<2;c++){const a=buffer.getChannelData(c);for(let i=0;i<len;i++)a[i]=(Math.random()*2-1)*Math.pow(1-i/len,3)*.4}reverb.buffer=buffer;const wet=audio.createGain();wet.gain.value=.38;reverb.connect(wet);wet.connect(master)}
-function tone(h,x,soft=false){if(!soundOn||!audio)return;const now=audio.currentTime,scale=[0,2,4,7,9],n=h%15,f=220*Math.pow(2,(scale[n%5]+12*Math.floor(n/5))/12);const pan=audio.createStereoPanner();pan.pan.value=Math.max(-.8,Math.min(.8,x/W*1.6-.8));pan.connect(master);pan.connect(reverb);[1,2.756,4.04].forEach((ratio,i)=>{const o=audio.createOscillator(),g=audio.createGain();o.type='sine';o.frequency.setValueAtTime(f*ratio,now);g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime((soft?.07:.17)/(1+i*3),now+.012);g.gain.exponentialRampToValueAtTime(.0001,now+2.4/(1+i*.5));o.connect(g);g.connect(pan);o.start(now);o.stop(now+2.6)});setTimeout(()=>pan.disconnect(),3200)}
+const activeSounds=new Map(),recordings={};let soundLoading,lastRecording=-1;
+function initAudio(){
+ if(audio)return;audio=new (window.AudioContext||window.webkitAudioContext)();master=audio.createGain();master.gain.value=.24;
+ const limiter=audio.createDynamicsCompressor();limiter.threshold.value=-12;limiter.knee.value=18;limiter.ratio.value=2.5;limiter.attack.value=.012;limiter.release.value=.35;
+ master.connect(limiter);limiter.connect(audio.destination);
+}
+async function loadRecordings(){
+ if(recordings.ascent)return;
+ if(!soundLoading)soundLoading=Promise.all(['ascent','bloom-1','bloom-2','bloom-3'].map(async name=>{
+ const response=await fetch(`assets/audio/${name}.wav`);if(!response.ok)throw new Error('Audio could not be loaded');
+ const buffer=await audio.decodeAudioData(await response.arrayBuffer());return [name,buffer];
+ })).then(entries=>{for(const [name,buffer] of entries)recordings[name]=buffer}).catch(error=>{soundLoading=undefined;throw error});
+ await soundLoading;
+}
+function recordedSound(name,x,{duration,level=1,delay=0,rate=1,endX=x}={}){
+ if(!soundOn||!audio||!recordings[name])return;
+ const now=audio.currentTime+delay,source=audio.createBufferSource(),gain=audio.createGain(),pan=audio.createStereoPanner();source.buffer=recordings[name];
+ source.playbackRate.value=duration?source.buffer.duration/duration:rate;const length=source.buffer.duration/source.playbackRate.value;
+ const position=p=>Math.max(-.6,Math.min(.6,(p/W-.5)*1.2));pan.pan.setValueAtTime(position(x),now);pan.pan.linearRampToValueAtTime(position(endX),now+length);
+ gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(level,now+.012);gain.gain.setValueAtTime(level,now+Math.max(.02,length-.35));gain.gain.linearRampToValueAtTime(0,now+length);
+ source.connect(gain);gain.connect(pan);pan.connect(master);activeSounds.set(source,gain);source.onended=()=>{activeSounds.delete(source);source.disconnect();gain.disconnect();pan.disconnect()};source.start(now);
+}
+function stopSounds(){if(!audio)return;for(const [source,gain] of activeSounds){gain.gain.cancelScheduledValues(audio.currentTime);gain.gain.setTargetAtTime(0,audio.currentTime,.018);try{source.stop(audio.currentTime+.08)}catch{}}}
+function tone(h,x,soft=false){
+ let next=Math.floor(Math.random()*3);if(next===lastRecording)next=(next+1)%3;lastRecording=next;
+ recordedSound(`bloom-${next+1}`,x,{delay:.08,level:soft?.35:.95,rate:.98+Math.random()*.04});
+}
+function ascentSound(r){const start=project(r),end=project({x:r.tx,y:r.ty,z:r.tz});recordedSound('ascent',start?start.x:W/2,{level:1.3,endX:end?end.x:W/2})}
 const segmenter=new Intl.Segmenter('ja',{granularity:'grapheme'});
 function graphemes(text){return Array.from(segmenter.segment(text),part=>part.segment)}
 function addText(text){const chars=graphemes(text).filter(c=>! /\s/.test(c));queue.push(...chars.slice(0,80));queue=queue.slice(-100);if(chars.length)document.querySelector('#welcome').classList.add('gone')}
 // All positions and trails live in world space; the camera projects them anew each frame.
-let moving=!reduced, yaw=0,pitch=-.48,cameraDistance=1100,pointerX=0,pointerY=0,dragging=false;
-let focusX=0,focusY=130,focusZ=0,shotStart=-100,shotYaw=0,shotPitch=0;
+let moving=!reduced, yaw=0,pitch=-.48,cameraDistance=500,pointerX=0,pointerY=0,dragging=false;
+let focusX=0,focusY=70,focusZ=0,shotStart=-100,shotYaw=0,shotPitch=0;
 // Keep a generous, stable stage: adding a flower must not shrink the whole composition.
 function cameraFrame(){const focal=Math.min(W/1000,H/780)*850;return{x:0,y:70,z:0,distance:focal/(Math.min(W,H)/480)}}
 function fromCamera(x,y,z){const cp=Math.cos(pitch),sp=Math.sin(pitch),cy=Math.cos(yaw),sy=Math.sin(yaw),wy=y*cp+z*sp,wz=-y*sp+z*cp;return{x:x*cy+wz*sy,y:wy+70,z:-x*sy+wz*cy}}
@@ -52,17 +79,41 @@ function launch(c){
  // Independent ground origins make crossing, outward and almost vertical launches.
  const origin=fromCamera((Math.random()-.5)*W*.95/scale,H*.47/scale,60+Math.random()*90);
  rockets.push({c,h,x:origin.x,y:origin.y,z:origin.z,sx:origin.x,sy:origin.y,sz:origin.z,tx:target.x,ty:target.y,tz:target.z,bend:(Math.random()-.5)*55,age:0,dur:reduced?.4:2.4+Math.random()*.15,trail:[]});
+ ascentSound(rockets[rockets.length-1]);
  document.querySelector('#status').textContent='ことばのまわりを、漂う。';
 }
-function bloom(r){ascentTrails.push({trail:r.trail,h:r.h,age:0});const hue=[174,194,214,35,285][r.h%5]+(Math.random()-.5)*22,count=reduced?40:150+Math.floor(Math.random()*65),phase=Math.random()*Math.PI*2,lobes=2+Math.floor(Math.random()*5),bands=2+Math.floor(Math.random()*4),speed=78+Math.random()*12,irregularity=.08+Math.random()*.16;for(let i=0;i<count;i++){const u=Math.max(-1,Math.min(1,1-2*(i+.5+(Math.random()-.5)*.9)/count)),a=i*2.399963+(Math.random()-.5)*.34,v=speed*(.68+Math.random()*.30)*(1+irregularity*Math.sin(a*lobes+phase)*Math.sin(Math.acos(u)*bands+phase)),rad=Math.sqrt(1-u*u);const vx=Math.cos(a)*rad*v,vy=u*v,vz=Math.sin(a)*rad*v;sparks.push({x:r.x,y:r.y,z:r.z,vx,vy,vz,age:0,life:3.8+Math.random()*2.4,hue,seed:Math.random()*10,trail:[]})}letters.push({c:r.c,x:r.x,y:r.y,z:r.z,sx:r.sx,sz:r.sz,age:0,hue});const screen=project(r);tone(r.h,screen?screen.x:W*.5);sparks=sparks.slice(-2200)}
+function bloom(r){ascentTrails.push({trail:r.trail,h:r.h,age:0});const hue=[38,192,218,28,270][r.h%5]+(Math.random()-.5)*12,count=reduced?55:240+Math.floor(Math.random()*70),phase=Math.random()*Math.PI*2,lobes=2+Math.floor(Math.random()*5),bands=2+Math.floor(Math.random()*4),speed=95+Math.random()*15,irregularity=.08+Math.random()*.16;for(let i=0;i<count;i++){const u=Math.max(-1,Math.min(1,1-2*(i+.5+(Math.random()-.5)*.9)/count)),a=i*2.399963+(Math.random()-.5)*.34,v=speed*(.68+Math.random()*.30)*(1+irregularity*Math.sin(a*lobes+phase)*Math.sin(Math.acos(u)*bands+phase)),rad=Math.sqrt(1-u*u);const vx=Math.cos(a)*rad*v,vy=u*v,vz=Math.sin(a)*rad*v;sparks.push({x:r.x,y:r.y,z:r.z,vx,vy,vz,age:0,life:3.8+Math.random()*2.4,hue,seed:Math.random()*10,trail:[]})}letters.push({c:r.c,x:r.x,y:r.y,z:r.z,sx:r.sx,sz:r.sz,age:0,hue,dots:glyphCloud(r.c)});const screen=project(r);tone(r.h,screen?screen.x:W*.5);sparks=sparks.slice(-2200)}
+// Letters are made of the same small points of light as the bloom.
+const glyphCanvas=document.createElement('canvas');glyphCanvas.width=glyphCanvas.height=96;
+const glyphContext=glyphCanvas.getContext('2d',{willReadFrequently:true}),glyphCache=new Map();
+function glyphCloud(character){
+ if(!glyphCache.has(character)){
+ glyphContext.clearRect(0,0,96,96);glyphContext.fillStyle='#fff';glyphContext.font='64px "Yu Mincho",serif';glyphContext.textAlign='center';glyphContext.textBaseline='middle';glyphContext.fillText(character,48,50);
+ const data=glyphContext.getImageData(0,0,96,96).data,points=[];
+ for(let y=8;y<89;y+=2)for(let x=8;x<89;x+=2)if(data[(y*96+x)*4+3]>90)points.push({x:(x-48)*.88,y:(y-48)*.88});
+ if(glyphCache.size>=128)glyphCache.delete(glyphCache.keys().next().value);glyphCache.set(character,points);
+ }
+ return glyphCache.get(character).map(p=>({...p,jitterX:(Math.random()-.5)*.5,jitterY:(Math.random()-.5)*.5,vx:(Math.random()-.5)*16,vy:(Math.random()-.5)*16,seed:Math.random()*6.28}));
+}
+function drawWordLight(l){
+ const center=project(l);if(!center)return;
+ const reveal=Math.min(l.age/.65,1),fade=1-Math.max(0,(l.age-3.7)/2.8),alpha=Math.max(0,reveal*fade),dissolve=Math.max(0,l.age-2.8);
+ // A brief, soft pressure of light at opening, without a hard-edged circle.
+ if(l.age<1.2){const radius=(35+l.age*80)*center.k,g=ctx.createRadialGradient(center.x,center.y,0,center.x,center.y,radius);g.addColorStop(0,`hsla(${l.hue},60%,85%,${(1-l.age/1.2)*.16})`);g.addColorStop(1,`hsla(${l.hue},50%,60%,0)`);ctx.fillStyle=g;ctx.fillRect(center.x-radius,center.y-radius,radius*2,radius*2)}
+ for(const dot of l.dots){const dx=dot.x+dot.jitterX+dot.vx*dissolve*dissolve*.23,dy=dot.y+dot.jitterY+dot.vy*dissolve*dissolve*.23;
+ const px=center.x+dx*center.k,py=center.y+dy*center.k-l.age*1.4,twinkle=.78+.22*Math.sin(l.age*2+dot.seed),size=Math.max(.45,Math.min(1.25,center.k*.6));
+ ctx.fillStyle=`hsla(${l.hue},45%,74%,${alpha*.055})`;ctx.beginPath();ctx.arc(px,py,size*3.3,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle=`hsla(${l.hue},22%,92%,${alpha*.72*twinkle})`;ctx.fillRect(px-size*.5,py-size*.5,size,size);
+ }
+}
 function frame(t){requestAnimationFrame(frame);const dt=Math.min((t-last)/1000||.016,.04);last=t;elapsed+=dt;
-if(queue.length&&elapsed>nextLaunch){launch(queue.shift());nextLaunch=elapsed+.48}
+if(queue.length&&elapsed>nextLaunch){launch(queue.shift());nextLaunch=elapsed+.85}
 stageBottom=H;stageCenterY=H*.5;
-if(moving){const smooth=1-Math.exp(-dt*1.6),shotAge=Math.max(0,elapsed-shotStart),orbit=Math.min(shotAge/9,1),ease=orbit*orbit*(3-2*orbit);
+if(moving){const smooth=1-Math.exp(-dt*1.6),shotAge=Math.max(0,elapsed-shotStart),orbit=Math.min(shotAge/13,1),ease=orbit*orbit*(3-2*orbit);
  if(shotStart>=0){
- const targetYaw=shotYaw+ease*Math.PI*1.25+pointerX*.045;
- const returnProgress=Math.max(0,Math.min((shotAge-10)/7,1)),returnEase=returnProgress*returnProgress*(3-2*returnProgress);
- const targetPitch=(shotPitch+ease*(.77-shotPitch))*(1-returnEase)-.48*returnEase+pointerY*.035;
+ const targetYaw=shotYaw+ease*Math.PI*.85+pointerX*.045;
+ const returnProgress=Math.max(0,Math.min((shotAge-15)/9,1)),returnEase=returnProgress*returnProgress*(3-2*returnProgress);
+ const targetPitch=(shotPitch+ease*(.66-shotPitch))*(1-returnEase)-.48*returnEase+pointerY*.035;
  yaw+=(targetYaw-yaw)*smooth;pitch+=(targetPitch-pitch)*smooth;
  }}
 const framing=cameraFrame(),follow=1-Math.exp(-dt*1.6);
@@ -73,14 +124,8 @@ ctx.globalCompositeOperation='source-over';ctx.fillStyle='#05080e';ctx.fillRect(
 for(const star of stars){const p=project(star);if(!p)continue;const alpha=(.12+.07*Math.sin(elapsed*.3+star.phase))*Math.min(1,p.k);ctx.fillStyle=`rgba(137,174,191,${alpha})`;const size=Math.max(.45,p.k*.9);ctx.fillRect(p.x,p.y,size,size)}
 rockets=rockets.filter(r=>{r.age+=dt;const p=Math.min(r.age/r.dur,1),e=p*p*(3-2*p);r.x=r.sx+(r.tx-r.sx)*e+r.bend*Math.sin(p*Math.PI);r.y=r.sy+(r.ty-r.sy)*e;r.z=r.sz+(r.tz-r.sz)*e+Math.sin(p*Math.PI)*60;r.trail.push({x:r.x,y:r.y,z:r.z});if(r.trail.length>150)r.trail.shift();launchRibbon(r);if(p>=1){bloom(r);return false}return true});
 ascentTrails=ascentTrails.filter(r=>{r.age+=dt;if(r.age>1.6)return false;launchRibbon(r,Math.pow(1-r.age/1.6,2));return true});
-sparks=sparks.filter(s=>{s.age+=dt;if(s.age>s.life)return false;const drag=Math.exp(-dt*.4);s.vx*=drag;s.vz*=drag;s.vy=s.vy*drag+dt*7;s.x+=s.vx*dt;s.y+=s.vy*dt;s.z+=s.vz*dt;s.trail.push({x:s.x,y:s.y,z:s.z});if(s.trail.length>60)s.trail.shift();const a=Math.pow(1-Math.max(0,(s.age/s.life-.4)/.6),1.3);trace(s.trail,s.hue,a*.8,.85);const p=project(s);if(p){const size=Math.max(.5,p.k*(.7+.3*Math.sin(s.age*17+s.seed)));ctx.fillStyle=`hsla(${s.hue},55%,84%,${a*.95})`;ctx.fillRect(p.x,p.y,size,size)}return true});
-letters=letters.filter(l=>{
- l.age+=dt;if(l.age>6.5)return false;const p=project({x:l.x,y:l.y-l.age*2,z:l.z});if(!p)return true;
- const fadeIn=Math.min(l.age/.22,1),fadeOut=1-Math.max(0,(l.age-4.3)/2.2),alpha=fadeIn*fadeOut;
- ctx.save();ctx.globalCompositeOperation='source-over';ctx.textAlign='center';ctx.textBaseline='middle';
- const size=Math.max(26,Math.min(50,Math.min(W,H)*.060*p.k/1.3));ctx.font=`400 ${size}px "Yu Mincho",serif`;
-
- ctx.shadowColor=`hsla(${l.hue},70%,80%,${alpha})`;ctx.shadowBlur=18;ctx.fillStyle=`hsla(${l.hue},25%,88%,${alpha*.65})`;ctx.fillText(l.c,p.x,p.y);ctx.restore();return true});}
+sparks=sparks.filter(s=>{s.age+=dt;if(s.age>s.life)return false;const drag=Math.exp(-dt*.4);s.vx*=drag;s.vz*=drag;s.vy=s.vy*drag+dt*4;s.x+=s.vx*dt;s.y+=s.vy*dt;s.z+=s.vz*dt;s.trail.push({x:s.x,y:s.y,z:s.z});if(s.trail.length>40)s.trail.shift();const a=Math.pow(1-Math.max(0,(s.age/s.life-.4)/.6),1.3);trace(s.trail,s.hue,a*.52,.50);const p=project(s);if(p){const size=Math.max(.5,p.k*(.7+.3*Math.sin(s.age*17+s.seed)));ctx.fillStyle=`hsla(${s.hue},55%,84%,${a*.95})`;ctx.fillRect(p.x,p.y,size,size)}return true});
+letters=letters.filter(l=>{l.age+=dt;if(l.age>6.5)return false;drawWordLight(l);return true});}
 
 requestAnimationFrame(frame);
 let compositionTimer;
@@ -98,7 +143,11 @@ function consume(){
  addText(after.slice(i,end).join(''));lastValue=current;
 }
 field.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing&&!composing){field.value='';lastValue=''}});
-document.querySelector('#sound').onclick=async()=>{try{initAudio();await audio.resume();soundOn=!soundOn;master.gain.setTargetAtTime(soundOn?.24:0,audio.currentTime,.1);document.querySelector('#sound').textContent=soundOn?'音をとじる ◉':'音をひらく ○';document.querySelector('#sound').setAttribute('aria-pressed',String(soundOn));if(soundOn)tone(hash('余'),W*.5,true)}catch{document.querySelector('#sound').textContent='音を利用できません'}};
-document.querySelector('#demo').onclick=()=>addText('余白に咲く');document.querySelector('#clear').onclick=()=>{clearTimeout(compositionTimer);compositionTimer=undefined;rockets=[];ascentTrails=[];sparks=[];letters=[];queue=[];launchIndex=0;shotStart=-100;field.value='';lastValue='';ctx.clearRect(0,0,W,H);document.querySelector('#welcome').classList.remove('gone');document.querySelector('#status').textContent='夜の余白に、ひとひら。'};
+document.querySelector('#sound').onclick=async()=>{
+ const button=document.querySelector('#sound');button.disabled=true;
+ try{initAudio();await audio.resume();if(!soundOn){button.textContent='音を準備しています';await loadRecordings()}soundOn=!soundOn;master.gain.setTargetAtTime(soundOn?.24:0,audio.currentTime,.1);if(!soundOn)stopSounds();button.textContent=soundOn?'音をとじる ◉':'音をひらく ○';button.setAttribute('aria-pressed',String(soundOn))}
+ catch{button.textContent='音を再読み込み';soundOn=false;button.setAttribute('aria-pressed','false')}finally{button.disabled=false}
+};
+document.querySelector('#demo').onclick=()=>addText('余白に咲く');document.querySelector('#clear').onclick=()=>{stopSounds();clearTimeout(compositionTimer);compositionTimer=undefined;rockets=[];ascentTrails=[];sparks=[];letters=[];queue=[];launchIndex=0;shotStart=-100;field.value='';lastValue='';ctx.clearRect(0,0,W,H);document.querySelector('#welcome').classList.remove('gone');document.querySelector('#status').textContent='夜の余白に、ひとひら。'};
 
 </script></html>
