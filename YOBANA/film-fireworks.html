@@ -6,7 +6,7 @@
 </style>
 <canvas id="sky" aria-label="入力した文字が光の花火として夜空に広がります"></canvas>
 <canvas id="veil" aria-hidden="true" style="pointer-events:none;filter:blur(.45px)"></canvas>
-<header><h1>夜花</h1><p>YOBANA</p></header><nav aria-label="操作"><button id="demo">ひとひら試す</button><button id="sound" title="光が広がるアンビエント" aria-pressed="false">音をひらく ○</button><button id="motion" aria-pressed="true">視点をとめる</button><button id="clear" aria-label="夜空をクリア">消す</button><a href="/" target="_blank" rel="noopener" style="font:10px sans-serif;color:#9bafaf;padding:10px;text-decoration:none">花火版 ↗</a></nav>
+<header><h1>夜花</h1><p>YOBANA</p></header><nav aria-label="操作"><button id="demo">ひとひら試す</button><button id="sound" title="柔らかな開花音と火の粉の余韻" aria-pressed="false">音をひらく ○</button><button id="motion" aria-pressed="true">視点をとめる</button><button id="clear" aria-label="夜空をクリア">消す</button><a href="/" target="_blank" rel="noopener" style="font:10px sans-serif;color:#9bafaf;padding:10px;text-decoration:none">花火版 ↗</a></nav>
 <div id="welcome"><p>光の内側に、咲く。</p><span>ことばが咲くと、薄い膜がゆれる。</span></div>
 <main><label class="sr-only" for="words">夜空に打ち上げることば</label><input id="words" placeholder="ことばを入力して、Enter" autocomplete="off" spellcheck="false" maxlength="200"><small>変換を確定後、もう一度Enterで打ち上げ · 音は「音をひらく」から</small></main><footer><span>STUDY 02 — 膜のなかの花火</span><span id="status">夜の余白に、ひとひら。</span></footer>
 <script>
@@ -15,52 +15,46 @@ const canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d'),field=
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function resize(){W=innerWidth;H=innerHeight;dpr=Math.min(devicePixelRatio||1,2);canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#05080e';ctx.fillRect(0,0,W,H)}addEventListener('resize',resize);resize();
 function hash(s){let h=0;for(const c of s)h=(h*31+c.codePointAt(0))>>>0;return h}
-const activeSounds=new Map(),recordings={},ambientClouds=new Set();let soundLoading;
+const activeSounds=new Map(),recordings={};let soundLoading,lastBloom=-1;
 function initAudio(){
  if(audio)return;audio=new (window.AudioContext||window.webkitAudioContext)();master=audio.createGain();master.gain.value=.24;
- const limiter=audio.createDynamicsCompressor();limiter.threshold.value=-18;limiter.knee.value=24;limiter.ratio.value=2;limiter.attack.value=.08;limiter.release.value=1.2;master.connect(limiter);limiter.connect(audio.destination);
- // Diffuse the texture into a dark space, without a distinct repeated echo.
- reverb=audio.createConvolver();const length=Math.floor(audio.sampleRate*5.5),impulse=audio.createBuffer(2,length,audio.sampleRate);
- for(let c=0;c<2;c++){const data=impulse.getChannelData(c);let low=0;for(let i=0;i<length;i++){low+=.07*((Math.random()*2-1)-low);data[i]=low*Math.pow(1-i/length,2.8)*Math.min(1,i/(audio.sampleRate*.12))*.28}}
- reverb.buffer=impulse;const wet=audio.createGain();wet.gain.value=.55;reverb.connect(wet);wet.connect(master);
+ const limiter=audio.createDynamicsCompressor();limiter.threshold.value=-18;limiter.knee.value=24;limiter.ratio.value=2;limiter.attack.value=.035;limiter.release.value=.65;master.connect(limiter);limiter.connect(audio.destination);
+ // A soft, dark tail follows the real sound, without discrete or pitched echoes.
+ reverb=audio.createConvolver();const length=Math.floor(audio.sampleRate*5.2),impulse=audio.createBuffer(2,length,audio.sampleRate);
+ for(let c=0;c<2;c++){const data=impulse.getChannelData(c);let low=0;for(let i=0;i<length;i++){low+=.035*((Math.random()*2-1)-low);data[i]=low*Math.pow(1-i/length,2.3)*Math.min(1,i/(audio.sampleRate*.045))*.35}}
+ reverb.buffer=impulse;const dark=audio.createBiquadFilter(),wet=audio.createGain();dark.type='lowpass';dark.frequency.value=1100;dark.Q.value=.3;wet.gain.value=.48;reverb.connect(dark);dark.connect(wet);wet.connect(master);
 }
 async function loadRecordings(){
- if(recordings['bloom-1'])return;
- if(!soundLoading)soundLoading=Promise.all(['bloom-1','bloom-2','bloom-3'].map(async name=>{
+ if(recordings.ascent)return;
+ if(!soundLoading)soundLoading=Promise.all(['ascent','bloom-1','bloom-2','bloom-3'].map(async name=>{
  const response=await fetch(`assets/audio/${name}.wav`);if(!response.ok)throw new Error('Audio could not be loaded');
- const buffer=await audio.decodeAudioData(await response.arrayBuffer());return [name,buffer];
+ return [name,await audio.decodeAudioData(await response.arrayBuffer())];
  })).then(entries=>{for(const [name,buffer] of entries)recordings[name]=buffer}).catch(error=>{soundLoading=undefined;throw error});
  await soundLoading;
 }
-function stopSounds(){
- if(!audio)return;const now=audio.currentTime;
- for(const cloud of ambientClouds){cloud.gain.gain.cancelScheduledValues(now);cloud.gain.gain.setTargetAtTime(0,now,.12)}
- for(const [source,gain] of activeSounds){if(gain.gain.cancelAndHoldAtTime)gain.gain.cancelAndHoldAtTime(now);else gain.gain.cancelScheduledValues(now);gain.gain.setTargetAtTime(0,now,.08);try{source.stop(now+.45)}catch{}}
+function stopSounds(){if(!audio)return;const now=audio.currentTime;for(const [source,gain] of activeSounds){if(gain.gain.cancelAndHoldAtTime)gain.gain.cancelAndHoldAtTime(now);else gain.gain.cancelScheduledValues(now);gain.gain.setTargetAtTime(0,now,.06);try{source.stop(now+.3)}catch{}}}
+function soundVoice(buffer,x,rate=1){
+ const now=audio.currentTime,source=audio.createBufferSource(),gain=audio.createGain(),highpass=audio.createBiquadFilter(),warm=audio.createBiquadFilter(),pan=audio.createStereoPanner(),send=audio.createGain();source.buffer=buffer;source.playbackRate.value=rate;
+ highpass.type='highpass';highpass.frequency.value=48;highpass.Q.value=.3;
+ warm.type='lowpass';warm.Q.value=.25;warm.frequency.setValueAtTime(2600,now);warm.frequency.exponentialRampToValueAtTime(1250,now+6);
+ pan.pan.value=Math.max(-.55,Math.min(.55,(x/W-.5)*1.1));send.gain.value=.65;
+ source.connect(highpass);highpass.connect(warm);warm.connect(gain);gain.connect(pan);pan.connect(master);pan.connect(send);send.connect(reverb);activeSounds.set(source,gain);
+ source.onended=()=>{activeSounds.delete(source);source.disconnect();highpass.disconnect();warm.disconnect();gain.disconnect();pan.disconnect();send.disconnect()};
+ return {source,gain,warm,send,now,duration:buffer.duration/rate};
 }
 function tone(h,x,soft=false){
  if(!soundOn||!audio||!recordings['bloom-1'])return;
- const now=audio.currentTime,cloudGain=audio.createGain(),filter=audio.createBiquadFilter(),pan=audio.createStereoPanner(),cloud={gain:cloudGain};
- // Recordings become slowly overlapping, softened grains; never play the initial blast.
- filter.type='lowpass';filter.Q.value=.25;filter.frequency.setValueAtTime(1100,now);filter.frequency.linearRampToValueAtTime(1800,now+2.5);filter.frequency.exponentialRampToValueAtTime(480,now+9);
- pan.pan.setValueAtTime(Math.max(-.55,Math.min(.55,(x/W-.5)*1.1)),now);pan.pan.linearRampToValueAtTime((Math.random()-.5)*.6,now+8);
- cloudGain.gain.value=soft?.35:.62;cloudGain.connect(filter);filter.connect(pan);pan.connect(master);pan.connect(reverb);ambientClouds.add(cloud);
- if(ambientClouds.size>4){const oldest=ambientClouds.values().next().value;oldest.gain.gain.setTargetAtTime(0,now,.8);ambientClouds.delete(oldest)}
- const count=16;let remaining=count;
- for(let i=0;i<count;i++){
- const source=audio.createBufferSource(),envelope=audio.createGain();source.buffer=recordings[`bloom-${1+(h+i)%3}`];
- const rate=.22+Math.random()*.12,duration=2.4+Math.random()*1.6,start=now+i*.38+Math.random()*.12,offset=1.3+Math.random()*2.8;
- source.playbackRate.value=rate;
- const samples=source.buffer.getChannelData(0),begin=Math.floor(offset*source.buffer.sampleRate),end=Math.min(samples.length,begin+Math.ceil(duration*rate*source.buffer.sampleRate));let energy=0,peak=0,n=0;
- for(let j=begin;j<end;j+=8){energy+=samples[j]*samples[j];peak=Math.max(peak,Math.abs(samples[j]));n++}
- const textureGain=Math.min(5,.04/Math.max(.005,Math.sqrt(energy/Math.max(1,n))),.3/Math.max(.02,peak));
- const curve=new Float32Array(64),swell=Math.sin(Math.PI*(i+1)/(count+1));
- for(let j=0;j<curve.length;j++)curve[j]=Math.pow(Math.sin(Math.PI*j/(curve.length-1)),2)*(.36+swell*.38)*textureGain;
- envelope.gain.setValueAtTime(0,now);envelope.gain.setValueCurveAtTime(curve,start,duration);source.connect(envelope);envelope.connect(cloudGain);activeSounds.set(source,envelope);
- source.onended=()=>{activeSounds.delete(source);source.disconnect();envelope.disconnect();if(--remaining===0){ambientClouds.delete(cloud);cloudGain.disconnect();filter.disconnect();pan.disconnect()}};
- source.start(start,offset);source.stop(start+duration);
- }
+ let variant=Math.floor(Math.random()*3);if(variant===lastBloom)variant=(variant+1)%3;lastBloom=variant;
+ const voice=soundVoice(recordings[`bloom-${variant+1}`],x,.96+Math.random()*.04),{source,gain,now,duration}=voice,level=soft?.4:.78;
+ // A gentle opening retains the flower's timing; the real crackling gets space to linger.
+ gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(level*.55,now+.065);gain.gain.linearRampToValueAtTime(level*.85,now+.24);gain.gain.linearRampToValueAtTime(level,now+1.15);gain.gain.linearRampToValueAtTime(level*.9,now+3.6);gain.gain.linearRampToValueAtTime(0,now+duration);
+ source.start(now);source.stop(now+duration);
 }
-function ascentSound(r){} // Ascent is silent; the sound opens with the light.
+function ascentSound(r){
+ if(!soundOn||!audio||!recordings.ascent)return;const point=project(r),voice=soundVoice(recordings.ascent,point?point.x:W/2),{source,gain,warm,send,now,duration}=voice;
+ warm.frequency.cancelScheduledValues(now);warm.frequency.setValueAtTime(1100,now);send.gain.value=.10;
+ gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(.55,now+.12);gain.gain.setValueAtTime(.55,now+Math.max(.13,duration-.3));gain.gain.linearRampToValueAtTime(0,now+duration);source.start(now);source.stop(now+duration);
+}
 const segmenter=new Intl.Segmenter('ja',{granularity:'grapheme'});
 function graphemes(text){return Array.from(segmenter.segment(text),part=>part.segment)}
 function addText(text){const chars=graphemes(text).filter(c=>! /\s/.test(c));queue.push(...chars.slice(0,80));queue=queue.slice(-100);if(chars.length)document.querySelector('#welcome').classList.add('gone')}

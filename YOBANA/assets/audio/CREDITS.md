@@ -25,3 +25,7 @@ All recordings below are published under CC0 1.0. Copies of the source files are
 - File: ascent.wav.
 
 Retrieved 2026-10-24. The v2 saved version plays these as natural fireworks. The current ambient experiment uses only the bloom recordings: the opening blast is excluded, tail fragments are slowed and overlapped with smooth envelopes, filtered, and diffused through generated reverberation. The ascent recording remains available for the saved version but is not played.
+
+## Current sound study in film-fireworks.html
+
+After the visual-v3 checkpoint, this preview returns to the real ascent and bloom recordings, with gradual gain envelopes, gentle high/low-pass filtering and a generated, dark 5.2-second reverberation tail. It does not use granular stretching, pitched oscillators or synthetic crackles. The other preview pages retain their ambient experiments. Original WAV assets are unchanged.
