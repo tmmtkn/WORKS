@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ja">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>夜花 — 光の薄膜</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#030609;color:#d7e2df;font-family:'Hiragino Mincho ProN','Yu Mincho',serif}canvas{position:absolute;inset:0;width:100%;height:100%}#ink{pointer-events:none}header{position:absolute;left:38px;top:32px;text-align:center;pointer-events:none}h1{font-size:29px;font-weight:400;letter-spacing:.25em;text-indent:.25em;margin:0 0 12px}header p{font:9px sans-serif;letter-spacing:.3em;text-indent:.3em;color:#8da3a2}nav{position:absolute;right:32px;top:33px;display:flex;gap:8px}button,a{font:10px sans-serif;letter-spacing:.12em;color:#9bafaf;border:0;background:transparent;padding:10px;cursor:pointer;text-decoration:none}button:hover,a:hover{color:white}button:focus-visible,a:focus-visible{outline:1px solid #7b9499}main{position:absolute;bottom:35px;left:50%;transform:translateX(-50%);width:min(360px,calc(100% - 50px));text-align:center}input{width:100%;border:0;border-bottom:1px solid #6c919335;border-radius:0;background:none;color:#d7e2df;padding:10px;text-align:center;font:17px 'Yu Mincho',serif;letter-spacing:.2em;outline:none}input:focus{border-color:#9dc6c780}input::placeholder{font-size:13px;color:#8a9da1}small{display:block;font:9px sans-serif;letter-spacing:.13em;line-height:1.8;color:#82979c;margin-top:12px}footer{position:absolute;bottom:15px;left:38px;font:9px sans-serif;letter-spacing:.14em;color:#627b83}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}@media(max-width:600px){header{left:24px;top:26px}nav{top:22px;right:12px;max-width:70%;gap:0;flex-wrap:wrap;justify-content:flex-end}nav button,nav a{font-size:9px;padding:9px}footer{left:24px}main{bottom:38px}}
+</style></head>
+<body><canvas id="surface" aria-label="ことばに触れてたわむ、透けた光の膜"></canvas><canvas id="ink"></canvas>
+<header><h1>夜花</h1><p>YOBANA</p></header>
+<nav aria-label="操作"><button id="demo">ひとひら試す</button><button id="sound" aria-pressed="false">音をひらく ○</button><button id="clear">消す</button><a href="/" target="_blank" rel="noopener">花火版 ↗</a></nav>
+<main><label for="words" class="sr">光の膜へことばを浮かべる</label><input id="words" placeholder="ことばで、光にふれる" autocomplete="off" spellcheck="false" maxlength="100"><small>文字を打つと、光の膜がゆれる</small></main><footer>STUDY 01 — 光の薄膜</footer>
+<script>
+'use strict';
+const canvas=document.querySelector('#surface'),ink=document.querySelector('#ink'),ctx=ink.getContext('2d'),field=document.querySelector('#words');
+const gl=canvas.getContext('webgl',{alpha:false,antialias:true,powerPreference:'low-power'});
+let W=innerWidth,H=innerHeight,dpr=1,time=0,last=0,events=[],words=[],queue=[],next=0,serial=0,pointer=0,targetPointer=0;
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const vertex=`
+precision highp float;
+attribute vec2 uv;
+uniform float time,aspect,turn,layer;
+uniform vec4 ripples[8];
+varying vec3 normal,world;
+varying vec2 coord;
+vec3 membrane(vec2 p){
+ float u=p.x,v=p.y,t=time;
+ float z=.55*sin(u*1.25+v*1.35+t*.19)+.27*sin(v*3.1-u*.7-t*.24)+.12*sin(u*2.4+v*2.1+t*.13);
+ for(int i=0;i<8;i++){
+  float age=time-ripples[i].z;
+  float d=length((p-ripples[i].xy)*vec2(.8,1.1));
+  float fade=exp(-age*.29)*smoothstep(0.,.7,age)*ripples[i].w;
+  z+=sin(d*5.8-age*1.8)*exp(-d*.7)*fade*.30;
+ }
+ float y=v*.8+.30*sin(u*.8+t*.17)+layer*.22;
+ vec3 q=vec3(u,y,z+layer*.35);
+ float a=-.24+turn*.15;
+ q.xy=mat2(cos(a),sin(a),-sin(a),cos(a))*q.xy;
+ q.xz=mat2(cos(turn*.25),sin(turn*.25),-sin(turn*.25),cos(turn*.25))*q.xz;
+ return q;
+}
+void main(){
+ coord=uv;world=membrane(uv);
+ vec3 dx=membrane(uv+vec2(.015,0.))-world,dy=membrane(uv+vec2(0.,.015))-world;
+ normal=normalize(cross(dx,dy));
+ float depth=4.4-world.z;
+ gl_Position=vec4(world.x*1.8/aspect,world.y*1.8,0.,depth);
+}`;
+const fragment=`
+precision highp float;
+uniform float time,layer;
+varying vec3 normal,world;
+varying vec2 coord;
+void main(){
+ vec3 n=normalize(normal);
+ float rim=pow(1.-abs(dot(n,normalize(vec3(-world.xy,4.4-world.z)))),2.2);
+ float fold=pow(max(0.,dot(n,normalize(vec3(-.35,.7,.3)))),9.);
+ float interference=.5+.5*sin(world.z*3.4+coord.y*1.6+time*.10+layer*1.3);
+ vec3 cyan=vec3(.20,.62,.65),violet=vec3(.43,.30,.66),pearl=vec3(.81,.72,.49);
+ vec3 color=mix(cyan,violet,interference*.65);
+ color=mix(color,pearl,pow(interference,6.)*.6);
+ float edge=(1.-smoothstep(2.9,4.8,abs(coord.x)))*(1.-smoothstep(1.35,2.05,abs(coord.y)));
+ float silk=.97+.03*sin(coord.y*120.+world.z*3.);
+ float brightness=(.032+rim*.58+fold*.42)*edge*silk;
+ gl_FragColor=vec4(color*brightness*1.8*(layer==0.?1.:.38),1.);
+}`;
+let program;
+function shader(type,source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(s));return s}
+if(gl){
+ program=gl.createProgram();gl.attachShader(program,shader(gl.VERTEX_SHADER,vertex));gl.attachShader(program,shader(gl.FRAGMENT_SHADER,fragment));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(program));gl.useProgram(program);
+ const vertices=[],nx=150,ny=80;
+ for(let y=0;y<ny;y++)for(let x=0;x<nx;x++){const u=x/nx*9.6-4.8,v=y/ny*4.1-2.05,du=9.6/nx,dv=4.1/ny;vertices.push(u,v,u+du,v,u,v+dv,u+du,v,u+du,v+dv,u,v+dv)}
+ const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(vertices),gl.STATIC_DRAW);const location=gl.getAttribLocation(program,'uv');gl.enableVertexAttribArray(location);gl.vertexAttribPointer(location,2,gl.FLOAT,false,0,0);
+ program.count=vertices.length/2;program.uniforms=Object.fromEntries(['time','aspect','turn','layer','ripples[0]'].map(key=>[key,gl.getUniformLocation(program,key)]));
+ gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE);gl.clearColor(3/255,6/255,9/255,1);
+}else{document.querySelector('small').textContent='このプレビューにはWebGL対応ブラウザが必要です'}
+function resize(){W=innerWidth;H=innerHeight;dpr=Math.min(devicePixelRatio||1,1.6);for(const c of [canvas,ink]){c.width=Math.round(W*dpr);c.height=Math.round(H*dpr)}ctx.setTransform(dpr,0,0,dpr,0,0);if(gl)gl.viewport(0,0,canvas.width,canvas.height)}resize();addEventListener('resize',resize);
+addEventListener('pointermove',e=>targetPointer=(e.clientX/W-.5)*2);
+function surface(u,v){let z=.55*Math.sin(u*1.25+v*1.35+time*.19)+.27*Math.sin(v*3.1-u*.7-time*.24)+.12*Math.sin(u*2.4+v*2.1+time*.13);
+ for(const e of events){const age=time-e.at,d=Math.hypot((u-e.u)*.8,(v-e.v)*1.1),fade=Math.exp(-age*.29)*smooth(age/.7);z+=Math.sin(d*5.8-age*1.8)*Math.exp(-d*.7)*fade*.30}
+ let x=u,y=v*.8+.30*Math.sin(u*.8+time*.17),a=-.24+pointer*.15,c=Math.cos(a),s=Math.sin(a),rx=c*x-s*y,ry=s*x+c*y,b=pointer*.25;
+ x=rx*Math.cos(b)-z*Math.sin(b);z=rx*Math.sin(b)+z*Math.cos(b);const depth=4.4-z;return{x:W/2+x*H*.9/depth,y:H/2-ry*H*.9/depth,k:H*.9/depth}}
+function smooth(t){t=Math.max(0,Math.min(1,t));return t*t*(3-2*t)}
+const glyph=document.createElement('canvas');glyph.width=glyph.height=100;const gc=glyph.getContext('2d',{willReadFrequently:true}),segmenter=new Intl.Segmenter('ja',{granularity:'grapheme'});
+function chars(s){return Array.from(segmenter.segment(s),p=>p.segment)}
+function imprint(c){
+ const u=serial===0?0:Math.sin(serial*2.4)*2.1,v=serial===0?0:Math.cos(serial*1.9)*.6;serial++;
+ gc.clearRect(0,0,100,100);gc.font='64px "Yu Mincho",serif';gc.textAlign='center';gc.textBaseline='middle';gc.fillStyle='white';gc.fillText(c,50,53);const data=gc.getImageData(0,0,100,100).data,dots=[];
+ for(let y=8;y<94;y+=2)for(let x=8;x<94;x+=2)if(data[(y*100+x)*4+3]>80)dots.push({u:(x-50)*.008,v:-(y-50)*.008,seed:Math.random()*6.28});
+ events.push({u,v,at:time});events=events.slice(-8);words.push({c,u,v,at:time,dots});words=words.slice(-12);tone(c.charCodeAt(0),W*.5+u*W*.10);
+}
+function frame(t){requestAnimationFrame(frame);if(document.hidden){last=t;return}const dt=Math.min(.05,(t-last)/1000||.016);last=t;time+=dt*(reduced?.2:1);pointer+=(targetPointer-pointer)*(1-Math.exp(-dt*1.5));
+ if(queue.length&&time>next){imprint(queue.shift());next=time+.8}events=events.filter(e=>time-e.at<18);
+ if(gl){gl.clear(gl.COLOR_BUFFER_BIT);const uniforms=program.uniforms;gl.uniform1f(uniforms.time,time);gl.uniform1f(uniforms.aspect,W/H);gl.uniform1f(uniforms.turn,pointer);const ripples=new Float32Array(32);events.forEach((e,i)=>ripples.set([e.u,e.v,e.at,1],i*4));gl.uniform4fv(uniforms['ripples[0]'],ripples);for(let layer=1;layer>=0;layer--){gl.uniform1f(uniforms.layer,layer);gl.drawArrays(gl.TRIANGLES,0,program.count)}}
+ ctx.clearRect(0,0,W,H);ctx.globalCompositeOperation='lighter';words=words.filter(w=>time-w.at<12);
+ for(const word of words){const age=time-word.at,alpha=smooth(age/.8)*(1-smooth((age-5)/7));for(const dot of word.dots){const dissolve=Math.max(0,age-6),p=surface(word.u+dot.u+Math.sin(dot.seed)*dissolve*.012,word.v+dot.v+Math.cos(dot.seed)*dissolve*.009),size=Math.max(.5,p.k*.005),a=alpha*(.40+.10*Math.sin(dot.seed+time));ctx.fillStyle=`rgba(181,225,224,${a*.08})`;ctx.beginPath();ctx.arc(p.x,p.y,size*4,0,Math.PI*2);ctx.fill();ctx.fillStyle=`rgba(217,237,229,${a})`;ctx.fillRect(p.x,p.y,size,size)}}
+}requestAnimationFrame(frame);
+let composing=false,previous='',timer;
+function consume(){const before=chars(previous),after=chars(field.value);let i=0;while(i<before.length&&i<after.length&&before[i]===after[i])i++;let end=after.length,old=before.length;while(end>i&&old>i&&after[end-1]===before[old-1]){end--;old--}queue.push(...after.slice(i,end).filter(c=>!/\s/.test(c)));queue=queue.slice(-60);previous=field.value}
+field.addEventListener('compositionstart',()=>{composing=true;clearTimeout(timer)});field.addEventListener('compositionend',()=>{composing=false;timer=setTimeout(()=>{timer=undefined;consume()},0)});field.addEventListener('input',e=>{if(!composing&&!e.isComposing&&timer===undefined)consume()});field.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing&&!composing){field.value='';previous=''}});
+document.querySelector('#demo').onclick=()=>queue.push(...chars('余白'));
+document.querySelector('#clear').onclick=()=>{clearTimeout(timer);timer=undefined;queue=[];words=[];events=[];serial=0;field.value='';previous='';stopSounds()};
+
+let soundOn=false,audio,master,reverb;
+const activeSounds=new Map(),recordings={},ambientClouds=new Set();let soundLoading;
+function initAudio(){
+ if(audio)return;audio=new (window.AudioContext||window.webkitAudioContext)();master=audio.createGain();master.gain.value=.24;
+ const limiter=audio.createDynamicsCompressor();limiter.threshold.value=-18;limiter.knee.value=24;limiter.ratio.value=2;limiter.attack.value=.08;limiter.release.value=1.2;master.connect(limiter);limiter.connect(audio.destination);
+ // Diffuse the texture into a dark space, without a distinct repeated echo.
+ reverb=audio.createConvolver();const length=Math.floor(audio.sampleRate*5.5),impulse=audio.createBuffer(2,length,audio.sampleRate);
+ for(let c=0;c<2;c++){const data=impulse.getChannelData(c);let low=0;for(let i=0;i<length;i++){low+=.07*((Math.random()*2-1)-low);data[i]=low*Math.pow(1-i/length,2.8)*Math.min(1,i/(audio.sampleRate*.12))*.28}}
+ reverb.buffer=impulse;const wet=audio.createGain();wet.gain.value=.55;reverb.connect(wet);wet.connect(master);
+}
+async function loadRecordings(){
+ if(recordings['bloom-1'])return;
+ if(!soundLoading)soundLoading=Promise.all(['bloom-1','bloom-2','bloom-3'].map(async name=>{
+ const response=await fetch(`assets/audio/${name}.wav`);if(!response.ok)throw new Error('Audio could not be loaded');
+ const buffer=await audio.decodeAudioData(await response.arrayBuffer());return [name,buffer];
+ })).then(entries=>{for(const [name,buffer] of entries)recordings[name]=buffer}).catch(error=>{soundLoading=undefined;throw error});
+ await soundLoading;
+}
+function stopSounds(){
+ if(!audio)return;const now=audio.currentTime;
+ for(const cloud of ambientClouds){cloud.gain.gain.cancelScheduledValues(now);cloud.gain.gain.setTargetAtTime(0,now,.12)}
+ for(const [source,gain] of activeSounds){if(gain.gain.cancelAndHoldAtTime)gain.gain.cancelAndHoldAtTime(now);else gain.gain.cancelScheduledValues(now);gain.gain.setTargetAtTime(0,now,.08);try{source.stop(now+.45)}catch{}}
+}
+function tone(h,x,soft=false){
+ if(!soundOn||!audio||!recordings['bloom-1'])return;
+ const now=audio.currentTime,cloudGain=audio.createGain(),filter=audio.createBiquadFilter(),pan=audio.createStereoPanner(),cloud={gain:cloudGain};
+ // Recordings become slowly overlapping, softened grains; never play the initial blast.
+ filter.type='lowpass';filter.Q.value=.25;filter.frequency.setValueAtTime(1100,now);filter.frequency.linearRampToValueAtTime(1800,now+2.5);filter.frequency.exponentialRampToValueAtTime(480,now+9);
+ pan.pan.setValueAtTime(Math.max(-.55,Math.min(.55,(x/W-.5)*1.1)),now);pan.pan.linearRampToValueAtTime((Math.random()-.5)*.6,now+8);
+ cloudGain.gain.value=soft?.35:.62;cloudGain.connect(filter);filter.connect(pan);pan.connect(master);pan.connect(reverb);ambientClouds.add(cloud);
+ if(ambientClouds.size>4){const oldest=ambientClouds.values().next().value;oldest.gain.gain.setTargetAtTime(0,now,.8);ambientClouds.delete(oldest)}
+ const count=16;let remaining=count;
+ for(let i=0;i<count;i++){
+ const source=audio.createBufferSource(),envelope=audio.createGain();source.buffer=recordings[`bloom-${1+(h+i)%3}`];
+ const rate=.22+Math.random()*.12,duration=2.4+Math.random()*1.6,start=now+i*.38+Math.random()*.12,offset=1.3+Math.random()*2.8;
+ source.playbackRate.value=rate;
+ const samples=source.buffer.getChannelData(0),begin=Math.floor(offset*source.buffer.sampleRate),end=Math.min(samples.length,begin+Math.ceil(duration*rate*source.buffer.sampleRate));let energy=0,peak=0,n=0;
+ for(let j=begin;j<end;j+=8){energy+=samples[j]*samples[j];peak=Math.max(peak,Math.abs(samples[j]));n++}
+ const textureGain=Math.min(5,.04/Math.max(.005,Math.sqrt(energy/Math.max(1,n))),.3/Math.max(.02,peak));
+ const curve=new Float32Array(64),swell=Math.sin(Math.PI*(i+1)/(count+1));
+ for(let j=0;j<curve.length;j++)curve[j]=Math.pow(Math.sin(Math.PI*j/(curve.length-1)),2)*(.36+swell*.38)*textureGain;
+ envelope.gain.setValueAtTime(0,now);envelope.gain.setValueCurveAtTime(curve,start,duration);source.connect(envelope);envelope.connect(cloudGain);activeSounds.set(source,envelope);
+ source.onended=()=>{activeSounds.delete(source);source.disconnect();envelope.disconnect();if(--remaining===0){ambientClouds.delete(cloud);cloudGain.disconnect();filter.disconnect();pan.disconnect()}};
+ source.start(start,offset);source.stop(start+duration);
+ }
+}
+function ascentSound(r){} // Ascent is silent; the sound opens with the light.
+
+document.querySelector('#sound').onclick=async()=>{
+ const button=document.querySelector('#sound');button.disabled=true;
+ try{initAudio();await audio.resume();if(!soundOn){button.textContent='音を準備しています';await loadRecordings()}soundOn=!soundOn;master.gain.setTargetAtTime(soundOn?.24:0,audio.currentTime,.1);if(!soundOn)stopSounds();button.textContent=soundOn?'音をとじる ◉':'音をひらく ○';button.setAttribute('aria-pressed',String(soundOn))}
+ catch{button.textContent='音を再読み込み';soundOn=false;button.setAttribute('aria-pressed','false')}finally{button.disabled=false}
+};
+
+</script></body></html>

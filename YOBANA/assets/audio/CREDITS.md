@@ -24,4 +24,4 @@ All recordings below are published under CC0 1.0. Copies of the source files are
 - Edits: first 1.06 seconds only, excluding the explosion; soft edge fades, original 44.1 kHz stereo PCM. Played at its original speed and pitch, without time stretching.
 - File: ascent.wav.
 
-Retrieved 2026-10-24. No synthetic oscillators, generated crackles or artificial reverberation are mixed into the current version.
+Retrieved 2026-10-24. The v2 saved version plays these as natural fireworks. The current ambient experiment uses only the bloom recordings: the opening blast is excluded, tail fragments are slowed and overlapped with smooth envelopes, filtered, and diffused through generated reverberation. The ascent recording remains available for the saved version but is not played.

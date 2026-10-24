@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#05080e"><title>夜花 — 膜のなかの花火</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#05080e;color:#d8dfdf;font-family:Georgia,'Hiragino Mincho ProN','Yu Mincho',serif}canvas{position:absolute;inset:0;width:100%;height:100%}header{position:absolute;top:32px;left:36px;pointer-events:none;text-align:center}h1{font-size:29px;font-weight:400;letter-spacing:.25em;text-indent:.25em;margin:0 0 12px}header p{font:10px sans-serif;letter-spacing:.3em;text-indent:.3em;color:#849698}nav{opacity:.65;transition:opacity .3s;flex-wrap:wrap;justify-content:flex-end;max-width:70%;position:absolute;right:42px;top:40px;display:flex;gap:8px}nav:hover,nav:focus-within{opacity:1}button{color:#a8bbbc;border:0;background:transparent;font:11px sans-serif;letter-spacing:.12em;padding:10px;cursor:pointer}button:hover,button:focus-visible{color:#fff;outline:1px solid #526267}main{position:absolute;bottom:30px;width:min(360px,calc(100% - 48px));left:50%;transform:translateX(-50%);text-align:center}label{display:block;color:#a6b5b7;letter-spacing:.22em;font-size:12px;margin-bottom:5px}input{display:block;width:100%;border:0;border-bottom:1px solid #3c4c5266;color:#e3eceb;background:transparent;text-align:center;font:20px Georgia,'Yu Mincho',serif;letter-spacing:.24em;padding:9px;outline:none;border-radius:0}input:focus{border-color:#8cb3b38a}input::placeholder{color:#687c82;font-size:15px}small{display:block;margin-top:8px;font:10px sans-serif;letter-spacing:.12em;color:#7b8e96;line-height:1.9}footer{position:absolute;bottom:12px;left:48px;right:48px;display:flex;justify-content:space-between;font:9px sans-serif;letter-spacing:.2em;color:#61717b}#welcome{position:absolute;top:38%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;transition:opacity 2s;width:90%}#welcome p{font-size:19px;letter-spacing:.3em;font-weight:400}#welcome span{font-size:11px;letter-spacing:.16em;color:#81969e}.gone{opacity:0}@media(max-width:600px){header{top:25px;left:25px}nav{right:16px;top:20px;gap:4px}main{bottom:32px}footer{left:25px;right:25px}#welcome p{font-size:16px}}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}main small{font-size:9px;opacity:.65}input{font-size:17px;border-bottom-color:#647c7c40}input::placeholder{font-size:13px;color:#8a9b9e}footer{opacity:.5}
+</style>
+<canvas id="sky" aria-label="入力した文字が光の花火として夜空に広がります"></canvas>
+<canvas id="veil" aria-hidden="true" style="pointer-events:none;filter:blur(.45px)"></canvas>
+<header><h1>夜花</h1><p>YOBANA</p></header><nav aria-label="操作"><button id="demo">ひとひら試す</button><button id="sound" title="光が広がるアンビエント" aria-pressed="false">音をひらく ○</button><button id="motion" aria-pressed="true">視点をとめる</button><button id="clear" aria-label="夜空をクリア">消す</button><a href="/" target="_blank" rel="noopener" style="font:10px sans-serif;color:#9bafaf;padding:10px;text-decoration:none">花火版 ↗</a></nav>
+<div id="welcome"><p>光の内側に、咲く。</p><span>ことばが咲くと、薄い膜がゆれる。</span></div>
+<main><label class="sr-only" for="words">夜空に打ち上げることば</label><input id="words" placeholder="ことばを入力して、Enter" autocomplete="off" spellcheck="false" maxlength="200"><small>変換を確定後、もう一度Enterで打ち上げ · 音は「音をひらく」から</small></main><footer><span>STUDY 02 — 膜のなかの花火</span><span id="status">夜の余白に、ひとひら。</span></footer>
+<script>
+'use strict';
+const canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d'),field=document.querySelector('input');let W,H,dpr,rockets=[],ascentTrails=[],sparks=[],letters=[],queue=[],soundOn=false,audio,master,reverb,composing=false,lastValue='',nextLaunch=0,last=0,elapsed=0;
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function resize(){W=innerWidth;H=innerHeight;dpr=Math.min(devicePixelRatio||1,2);canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#05080e';ctx.fillRect(0,0,W,H)}addEventListener('resize',resize);resize();
+function hash(s){let h=0;for(const c of s)h=(h*31+c.codePointAt(0))>>>0;return h}
+const activeSounds=new Map(),recordings={},ambientClouds=new Set();let soundLoading;
+function initAudio(){
+ if(audio)return;audio=new (window.AudioContext||window.webkitAudioContext)();master=audio.createGain();master.gain.value=.24;
+ const limiter=audio.createDynamicsCompressor();limiter.threshold.value=-18;limiter.knee.value=24;limiter.ratio.value=2;limiter.attack.value=.08;limiter.release.value=1.2;master.connect(limiter);limiter.connect(audio.destination);
+ // Diffuse the texture into a dark space, without a distinct repeated echo.
+ reverb=audio.createConvolver();const length=Math.floor(audio.sampleRate*5.5),impulse=audio.createBuffer(2,length,audio.sampleRate);
+ for(let c=0;c<2;c++){const data=impulse.getChannelData(c);let low=0;for(let i=0;i<length;i++){low+=.07*((Math.random()*2-1)-low);data[i]=low*Math.pow(1-i/length,2.8)*Math.min(1,i/(audio.sampleRate*.12))*.28}}
+ reverb.buffer=impulse;const wet=audio.createGain();wet.gain.value=.55;reverb.connect(wet);wet.connect(master);
+}
+async function loadRecordings(){
+ if(recordings['bloom-1'])return;
+ if(!soundLoading)soundLoading=Promise.all(['bloom-1','bloom-2','bloom-3'].map(async name=>{
+ const response=await fetch(`assets/audio/${name}.wav`);if(!response.ok)throw new Error('Audio could not be loaded');
+ const buffer=await audio.decodeAudioData(await response.arrayBuffer());return [name,buffer];
+ })).then(entries=>{for(const [name,buffer] of entries)recordings[name]=buffer}).catch(error=>{soundLoading=undefined;throw error});
+ await soundLoading;
+}
+function stopSounds(){
+ if(!audio)return;const now=audio.currentTime;
+ for(const cloud of ambientClouds){cloud.gain.gain.cancelScheduledValues(now);cloud.gain.gain.setTargetAtTime(0,now,.12)}
+ for(const [source,gain] of activeSounds){if(gain.gain.cancelAndHoldAtTime)gain.gain.cancelAndHoldAtTime(now);else gain.gain.cancelScheduledValues(now);gain.gain.setTargetAtTime(0,now,.08);try{source.stop(now+.45)}catch{}}
+}
+function tone(h,x,soft=false){
+ if(!soundOn||!audio||!recordings['bloom-1'])return;
+ const now=audio.currentTime,cloudGain=audio.createGain(),filter=audio.createBiquadFilter(),pan=audio.createStereoPanner(),cloud={gain:cloudGain};
+ // Recordings become slowly overlapping, softened grains; never play the initial blast.
+ filter.type='lowpass';filter.Q.value=.25;filter.frequency.setValueAtTime(1100,now);filter.frequency.linearRampToValueAtTime(1800,now+2.5);filter.frequency.exponentialRampToValueAtTime(480,now+9);
+ pan.pan.setValueAtTime(Math.max(-.55,Math.min(.55,(x/W-.5)*1.1)),now);pan.pan.linearRampToValueAtTime((Math.random()-.5)*.6,now+8);
+ cloudGain.gain.value=soft?.35:.62;cloudGain.connect(filter);filter.connect(pan);pan.connect(master);pan.connect(reverb);ambientClouds.add(cloud);
+ if(ambientClouds.size>4){const oldest=ambientClouds.values().next().value;oldest.gain.gain.setTargetAtTime(0,now,.8);ambientClouds.delete(oldest)}
+ const count=16;let remaining=count;
+ for(let i=0;i<count;i++){
+ const source=audio.createBufferSource(),envelope=audio.createGain();source.buffer=recordings[`bloom-${1+(h+i)%3}`];
+ const rate=.22+Math.random()*.12,duration=2.4+Math.random()*1.6,start=now+i*.38+Math.random()*.12,offset=1.3+Math.random()*2.8;
+ source.playbackRate.value=rate;
+ const samples=source.buffer.getChannelData(0),begin=Math.floor(offset*source.buffer.sampleRate),end=Math.min(samples.length,begin+Math.ceil(duration*rate*source.buffer.sampleRate));let energy=0,peak=0,n=0;
+ for(let j=begin;j<end;j+=8){energy+=samples[j]*samples[j];peak=Math.max(peak,Math.abs(samples[j]));n++}
+ const textureGain=Math.min(5,.04/Math.max(.005,Math.sqrt(energy/Math.max(1,n))),.3/Math.max(.02,peak));
+ const curve=new Float32Array(64),swell=Math.sin(Math.PI*(i+1)/(count+1));
+ for(let j=0;j<curve.length;j++)curve[j]=Math.pow(Math.sin(Math.PI*j/(curve.length-1)),2)*(.36+swell*.38)*textureGain;
+ envelope.gain.setValueAtTime(0,now);envelope.gain.setValueCurveAtTime(curve,start,duration);source.connect(envelope);envelope.connect(cloudGain);activeSounds.set(source,envelope);
+ source.onended=()=>{activeSounds.delete(source);source.disconnect();envelope.disconnect();if(--remaining===0){ambientClouds.delete(cloud);cloudGain.disconnect();filter.disconnect();pan.disconnect()}};
+ source.start(start,offset);source.stop(start+duration);
+ }
+}
+function ascentSound(r){} // Ascent is silent; the sound opens with the light.
+const segmenter=new Intl.Segmenter('ja',{granularity:'grapheme'});
+function graphemes(text){return Array.from(segmenter.segment(text),part=>part.segment)}
+function addText(text){const chars=graphemes(text).filter(c=>! /\s/.test(c));queue.push(...chars.slice(0,80));queue=queue.slice(-100);if(chars.length)document.querySelector('#welcome').classList.add('gone')}
+// All positions and trails live in world space; the camera projects them anew each frame.
+let moving=!reduced, yaw=0,pitch=-.48,cameraDistance=500,pointerX=0,pointerY=0,dragging=false;
+let focusX=0,focusY=70,focusZ=0,shotStart=-100,shotYaw=0,shotPitch=0;
+// Keep a generous, stable stage: adding a flower must not shrink the whole composition.
+function cameraFrame(){const focal=Math.min(W/1000,H/780)*850;return{x:0,y:70,z:0,distance:focal/(Math.min(W,H)/480)}}
+function fromCamera(x,y,z){const cp=Math.cos(pitch),sp=Math.sin(pitch),cy=Math.cos(yaw),sy=Math.sin(yaw),wy=y*cp+z*sp,wz=-y*sp+z*cp;return{x:x*cy+wz*sy,y:wy+70,z:-x*sy+wz*cy}}
+let launchIndex=0;
+const motionButton=document.querySelector('#motion');
+function motionLabel(){motionButton.textContent=moving?'視点をとめる':'視点をうごかす';motionButton.setAttribute('aria-pressed',String(moving))}motionLabel();
+motionButton.onclick=()=>{moving=!moving;motionLabel()};
+canvas.style.touchAction='none';
+canvas.addEventListener('pointerdown',e=>{dragging=true;canvas.setPointerCapture(e.pointerId)});
+canvas.addEventListener('pointerup',()=>dragging=false);
+canvas.addEventListener('pointercancel',()=>dragging=false);
+addEventListener('pointermove',e=>{if(e.pointerType==='mouse'||dragging){pointerX=(e.clientX/W-.5)*2;pointerY=(e.clientY/H-.5)*2}});
+canvas.addEventListener('pointerleave',()=>{if(!dragging){pointerX=0;pointerY=0}});
+let stageCenterY=H*.35,stageBottom=H*.65;
+const view={cy:1,sy:0,cp:1,sp:0,focal:850};
+function updateView(){view.cy=Math.cos(yaw);view.sy=Math.sin(yaw);view.cp=Math.cos(pitch);view.sp=Math.sin(pitch);view.focal=Math.min(W/1000,H/780)*850}
+function project(p,refraction=0){
+ const dx=p.x-focusX,dy=p.y-focusY,dz=p.z-focusZ,x=dx*view.cy-dz*view.sy,z=dx*view.sy+dz*view.cy,y=dy*view.cp-z*view.sp,depth=dy*view.sp+z*view.cp+cameraDistance;
+ if(depth<120)return null;const k=view.focal/depth,px=W*.5+x*k,py=stageCenterY+y*k;
+ return{x:refraction?px+Math.sin(py/H*5+elapsed*.18)*2*refraction:px,y:refraction?py+Math.sin(px/W*5-elapsed*.14)*1.4*refraction:py,k,depth};
+}
+function trace(points,hue,alpha,width,refraction=0){
+ if(points.length<2||alpha<.008)return;
+ const projected=[];for(let i=0;i<points.length;i+=2)projected.push(project(points[i],refraction));if((points.length-1)%2)projected.push(project(points[points.length-1],refraction));
+ const count=projected.length-1;
+ for(let band=0;band<4;band++){
+ const start=Math.floor(count*band/4),end=Math.floor(count*(band+1)/4);if(start===end)continue;
+ const tip=projected[end];ctx.strokeStyle=`hsla(${hue},48%,77%,${alpha*Math.pow((band+.7)/4,1.3)})`;ctx.lineWidth=Math.max(.25,width*(tip?tip.k:1));ctx.beginPath();let connected=false;
+ for(let i=start;i<=end;i++){const point=projected[i];if(!point){connected=false;continue}if(connected)ctx.lineTo(point.x,point.y);else ctx.moveTo(point.x,point.y);connected=true}ctx.stroke();
+ }
+}
+function launchRibbon(r,opacity=1){
+ const hue=[182,205,275,38][r.h%4];
+ ctx.save();ctx.globalAlpha=opacity;ctx.lineCap='round';ctx.lineJoin='round';
+ trace(r.trail,hue,.018,5);trace(r.trail,hue,.065,1.8);trace(r.trail,hue,.20,.55);
+ const q=r.x===undefined?null:project(r);if(q){const glow=ctx.createRadialGradient(q.x,q.y,0,q.x,q.y,Math.max(3,9*q.k));glow.addColorStop(0,'rgba(218,236,245,.35)');glow.addColorStop(.2,`hsla(${hue},45%,80%,.10)`);glow.addColorStop(1,`hsla(${hue},65%,85%,0)`);ctx.fillStyle=glow;ctx.beginPath();ctx.arc(q.x,q.y,Math.max(3,9*q.k),0,Math.PI*2);ctx.fill()}
+ ctx.restore();
+}
+const stars=Array.from({length:140},(_,i)=>({x:((i*7919)%1000-500)*3.6,y:((i*3571)%1000-500)*2.4,z:((i*2237)%1000-500)*2.2,phase:i}));
+function launch(c){
+ if(!rockets.length&&!letters.length){shotStart=elapsed;shotYaw=yaw;shotPitch=pitch}
+ const h=hash(c),scale=Math.min(W,H)/480,slots=[.16,.84,.36,.66,.5],slot=slots[launchIndex++%slots.length],screenX=Math.max(.1,Math.min(.9,slot+(Math.random()-.5)*.08));
+ const target=fromCamera((screenX-.5)*W/scale,(-.30+Math.random()*.34)*H/scale,(Math.random()-.5)*100);
+ // Independent ground origins make crossing, outward and almost vertical launches.
+ const origin=fromCamera((Math.random()-.5)*W*.95/scale,H*.47/scale,60+Math.random()*90);
+ rockets.push({c,h,x:origin.x,y:origin.y,z:origin.z,sx:origin.x,sy:origin.y,sz:origin.z,tx:target.x,ty:target.y,tz:target.z,bend:(Math.random()-.5)*55,age:0,dur:reduced?.4:2.4+Math.random()*.15,trail:[]});
+ ascentSound(rockets[rockets.length-1]);
+ document.querySelector('#status').textContent='ことばのまわりを、漂う。';
+}
+function bloom(r){ascentTrails.push({trail:r.trail,h:r.h,age:0});const hue=[38,192,218,28,270][r.h%5]+(Math.random()-.5)*12,count=reduced?55:240+Math.floor(Math.random()*70),phase=Math.random()*Math.PI*2,lobes=2+Math.floor(Math.random()*5),bands=2+Math.floor(Math.random()*4),speed=95+Math.random()*15,irregularity=.08+Math.random()*.16;membraneEvents.push({x:r.x,y:r.y,z:r.z,hue,at:elapsed,seed:Math.random()*Math.PI*2});membraneEvents=membraneEvents.slice(-8);for(let i=0;i<count;i++){const u=Math.max(-1,Math.min(1,1-2*(i+.5+(Math.random()-.5)*.9)/count)),a=i*2.399963+(Math.random()-.5)*.34,v=speed*(.68+Math.random()*.30)*(1+irregularity*Math.sin(a*lobes+phase)*Math.sin(Math.acos(u)*bands+phase)),rad=Math.sqrt(1-u*u);const vx=Math.cos(a)*rad*v,vy=u*v,vz=Math.sin(a)*rad*v;sparks.push({x:r.x,y:r.y,z:r.z,vx,vy,vz,age:0,life:3.8+Math.random()*2.4,hue,seed:Math.random()*10,trail:[]})}letters.push({c:r.c,x:r.x,y:r.y,z:r.z,sx:r.sx,sz:r.sz,age:0,hue,dots:glyphCloud(r.c)});const screen=project(r);tone(r.h,screen?screen.x:W*.5);sparks=sparks.slice(-2200)}
+// Letters are made of the same small points of light as the bloom.
+const glyphCanvas=document.createElement('canvas');glyphCanvas.width=glyphCanvas.height=96;
+const glyphContext=glyphCanvas.getContext('2d',{willReadFrequently:true}),glyphCache=new Map();
+function glyphCloud(character){
+ if(!glyphCache.has(character)){
+ glyphContext.clearRect(0,0,96,96);glyphContext.fillStyle='#fff';glyphContext.font='64px "Yu Mincho",serif';glyphContext.textAlign='center';glyphContext.textBaseline='middle';glyphContext.fillText(character,48,50);
+ const data=glyphContext.getImageData(0,0,96,96).data,points=[];
+ for(let y=8;y<89;y+=2)for(let x=8;x<89;x+=2)if(data[(y*96+x)*4+3]>90)points.push({x:(x-48)*.88,y:(y-48)*.88});
+ if(glyphCache.size>=128)glyphCache.delete(glyphCache.keys().next().value);glyphCache.set(character,points);
+ }
+ return glyphCache.get(character).map(p=>({...p,jitterX:(Math.random()-.5)*.5,jitterY:(Math.random()-.5)*.5,vx:(Math.random()-.5)*16,vy:(Math.random()-.5)*16,seed:Math.random()*6.28}));
+}
+function drawWordLight(l){
+ const center=project(l);if(!center)return;
+ const reveal=Math.min(l.age/.65,1),fade=1-Math.max(0,(l.age-3.7)/2.8),alpha=Math.max(0,reveal*fade),dissolve=Math.max(0,l.age-2.8);
+ // A brief, soft pressure of light at opening, without a hard-edged circle.
+ if(l.age<1.2){const radius=(35+l.age*80)*center.k,g=ctx.createRadialGradient(center.x,center.y,0,center.x,center.y,radius);g.addColorStop(0,`hsla(${l.hue},60%,85%,${(1-l.age/1.2)*.16})`);g.addColorStop(1,`hsla(${l.hue},50%,60%,0)`);ctx.fillStyle=g;ctx.fillRect(center.x-radius,center.y-radius,radius*2,radius*2)}
+ for(const dot of l.dots){const dx=dot.x+dot.jitterX+dot.vx*dissolve*dissolve*.23,dy=dot.y+dot.jitterY+dot.vy*dissolve*dissolve*.23;
+ const px=center.x+dx*center.k,py=center.y+dy*center.k-l.age*1.4,twinkle=.78+.22*Math.sin(l.age*2+dot.seed),size=Math.max(.45,Math.min(1.25,center.k*.6));
+ ctx.fillStyle=`hsla(${l.hue},45%,74%,${alpha*.055})`;ctx.beginPath();ctx.arc(px,py,size*3.3,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle=`hsla(${l.hue},22%,92%,${alpha*.72*twinkle})`;ctx.fillRect(px-size*.5,py-size*.5,size,size);
+ }
+}
+
+
+let membraneEvents=[];
+function membraneContact(x,y,z){let contact=0;for(const e of membraneEvents){const age=elapsed-e.at,radius=110+200*(1-Math.exp(-age*.45)),distance=Math.hypot(x-e.x,y-e.y,z-e.z);contact=Math.max(contact,Math.exp(-(((distance-radius*.65)/45)**2))*Math.exp(-age*.15))}return contact}
+function lightColor(h){const f=n=>{const k=(n+h/30)%12;return .72-.31*Math.max(-1,Math.min(k-3,9-k,1))};return [f(0),f(8),f(4)]}
+const renderMembrane=(()=>{
+ const veil=document.querySelector('#veil'),vg=veil.getContext('webgl',{alpha:true,antialias:true,powerPreference:'low-power'});if(!vg)return ()=>{};
+ const shared=`precision highp float;
+ uniform float time,layer,idle;uniform vec4 sources[8],colors[8];
+ float heightAt(vec2 p){return 65.*(.55*sin(p.x*1.25+p.y*1.35+time*.19)+.27*sin(p.y*3.1-p.x*.7-time*.24)+.12*sin(p.x*2.4+p.y*2.1+time*.13));}
+ `;
+ const vertex=shared+`
+ attribute vec2 uv;uniform vec3 focus;uniform vec4 camera;uniform vec2 viewport;uniform float focal;
+ varying vec3 normal,world;varying vec2 coord;
+ uniform vec4 patch,pose;
+ vec3 membrane(vec2 p){
+ float age=idle>.5?time*.09+pose.w:max(0.,time-patch.w),radius=idle>.5?390.:110.+200.*(1.-exp(-age*.45)),r2=dot(p,p);
+ // Broad, continuous folds read as a thin sheet, rather than rounded cloudy lobes.
+ float wave=sin(p.x*1.45+p.y*.55-age*.20+pose.w)*.19;
+ float bend=sin(p.y*1.35-age*.14+pose.w)*.075+p.x*p.y*.035;
+ vec3 q=vec3(p.x*radius,p.y*radius*.82,radius*(wave+bend));
+ float ax=pose.x+sin(age*.13+pose.w)*.10,ay=pose.y+age*.035,az=pose.z+sin(age*.11)*.12;
+ q.yz=mat2(cos(ax),sin(ax),-sin(ax),cos(ax))*q.yz;
+ q.xz=mat2(cos(ay),sin(ay),-sin(ay),cos(ay))*q.xz;
+ q.xy=mat2(cos(az),sin(az),-sin(az),cos(az))*q.xy;
+ if(idle>.5){float cp=cos(camera.y),sp=sin(camera.y),cy=cos(camera.x),sy=sin(camera.x);float y=q.y*cp+q.z*sp,z=-q.y*sp+q.z*cp;q=vec3(q.x*cy+z*sy,y,-q.x*sy+z*cy);}
+ return q+patch.xyz+(idle>.5?vec3(0.):vec3(cos(pose.w)*radius*.22,sin(pose.w)*radius*.20,sin(pose.w*1.7)*radius*.2));
+ }
+ void main(){coord=uv;world=membrane(uv);normal=normalize(cross(membrane(uv+vec2(.012,0.))-world,membrane(uv+vec2(0.,.012))-world));
+ vec3 p=world-focus;float cy=cos(camera.x),sy=sin(camera.x),cp=cos(camera.y),sp=sin(camera.y);
+ float x=p.x*cy-p.z*sy,z=p.x*sy+p.z*cy,y=p.y*cp-z*sp,depth=p.y*sp+z*cp+camera.z;
+ gl_Position=vec4(2.*x*focal/viewport.x,-2.*y*focal/viewport.y,depth-40.,depth);
+ }`;
+ const fragment=shared+`
+ uniform vec4 embers[8],camera,patch;uniform vec3 focus,patchColor;uniform float exposure;varying vec3 normal,world;varying vec2 coord;
+ vec3 hsvToRgb(vec3 c){vec3 p=abs(fract(c.xxx+vec3(0.,2./3.,1./3.))*6.-3.);return c.z*mix(vec3(1.),clamp(p-1.,0.,1.),c.y);}
+ vec3 rgbToHsv(vec3 c){vec4 K=vec4(0.,-1./3.,2./3.,-1.);vec4 p=mix(vec4(c.bg,K.wz),vec4(c.gb,K.xy),step(c.b,c.g));vec4 q=mix(vec4(p.xyw,c.r),vec4(c.r,p.yzx),step(p.x,c.r));float d=q.x-min(q.w,q.y);return vec3(abs(q.z+(q.w-q.y)/(6.*d+.00001)),d/(q.x+.00001),q.x);}
+
+ float grainHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+ float softNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(grainHash(i),grainHash(i+vec2(1.,0.)),f.x),mix(grainHash(i+vec2(0.,1.)),grainHash(i+vec2(1.,1.)),f.x),f.y);}
+ void main(){if(dot(coord,coord)>4.)discard;vec3 n=normalize(normal);float fold=pow(abs(dot(n,normalize(vec3(-.3,.7,.35)))),8.);
+ float motionTime=time*(idle>.5?.3:1.);
+ float flow=.5+.5*sin(coord.x*.85+coord.y*1.2+world.z*.019+motionTime*.12);
+ float shimmer=.5+.5*sin(coord.y*1.6-world.z*.023-motionTime*.09);
+ vec3 tint=rgbToHsv(patchColor);tint.x=fract(tint.x+(flow-.5)*.028);tint.y=clamp(tint.y*(.6+shimmer*.3),.2,.6);tint.z=.8+flow*.15;
+ vec3 warm=mix(hsvToRgb(vec3(.065+(flow-.5)*.045,.28+shimmer*.22,.80+flow*.15)),hsvToRgb(tint),.72);
+ vec3 reflected=vec3(0.);float reflectedWeight=0.;
+ vec3 light=warm*(.040+fold*.115)*( .82+flow*.35);float excitation=0.;
+ {
+ float age=max(0.,time-patch.w),d=length(world-patch.xyz),radius=230.*(1.-exp(-age*.4));
+ float ring=exp(-pow((d-radius)/27.,2.))*smoothstep(0.,.4,age)*exp(-age*.35);
+ float wash=exp(-d*d/(8000.+age*5000.))*exp(-age*.95);
+ excitation=ring*.75+wash*.5;
+ float relief=.45+.55*abs(dot(n,normalize(patch.xyz-world+vec3(.001))));
+ vec3 hue=rgbToHsv(patchColor);hue.x=fract(hue.x+(flow-.5)*.025);hue.y=clamp(hue.y*(.68+shimmer*.40),.22,.68);hue.z=.86+flow*.12;
+ vec3 reflectedColor=hsvToRgb(hue);float influence=ring*.8+wash*1.2;
+ reflected=reflectedColor*influence;reflectedWeight=influence;
+ light+=reflectedColor*(ring*.23+wash*.27)*relief;
+ }
+ for(int i=0;i<8;i++){float near=length(world-embers[i].xyz);light+=vec3(1.,.82,.53)*exp(-near*near/650.)*embers[i].w*.10;}
+ vec3 material=mix(warm,reflected/max(.001,reflectedWeight),smoothstep(0.,.65,reflectedWeight)*.85);
+ light+=material*(.016+fold*.080)*(.8+shimmer*.35);
+ // Slowly moving, coherent patches of brightness, with a unique grain per bloom.
+ float seed=idle>.5?4.7+layer*11.3:patch.w*.73+layer*11.3;
+ float cloud=softNoise(coord*3.2+vec2(motionTime*.075,-motionTime*.045)+seed);
+ float detail=softNoise(coord*7.5+vec2(-motionTime*.035,motionTime*.055)+seed*2.7);
+ float foldBand=.5+.5*sin(coord.x*1.6+coord.y*.6+world.z*.012-motionTime*.07);
+ float islands=smoothstep(.28,.85,foldBand*.82+cloud*.18);
+ light*=1.0+islands*1.7;
+ // A fine, regular light matrix bends with the film; color and luminance vary in broad fields.
+ vec2 lattice=coord*vec2(78.,78.);
+ vec2 cell=floor(lattice),within=fract(lattice)-.5;
+ float dotMask=1.-smoothstep(.20,.30,length(within));
+ float variation=.94+.06*grainHash(cell+seed);
+ float activation=clamp(.24+fold*.8+excitation+islands*.7,0.,1.5);
+ light*=.48+dotMask*(1.25+activation*.45);
+ float fireworkDotBoost=idle>.5?1.:1.+clamp(excitation*1.8,0.,1.6);
+ light+=mix(material,vec3(.99,.94,.84),.14)*dotMask*variation*(.040+activation*.24)*(idle>.5?1.8:1.)*fireworkDotBoost;
+ // Each local curved patch disappears well before its perimeter.
+ float radius=length(coord),age=max(0.,time-patch.w);
+ float edge=exp(-coord.x*coord.x*.8-coord.y*coord.y*2.8);
+ edge*=idle>.5?1.:smoothstep(0.,.85,age)*(1.-smoothstep(5.5,11.,age));
+ // Fade silhouette folds as well as the outer perimeter. A face seen edge-on
+ // must dissolve instead of presenting a sharp ribbon-shaped boundary.
+ vec3 eye=focus+vec3(-camera.z*cos(camera.y)*sin(camera.x),-camera.z*sin(camera.y),-camera.z*cos(camera.y)*cos(camera.x));
+ float facing=abs(dot(n,normalize(eye-world)));
+ float silhouette=smoothstep(.06,.55,facing);
+ vec3 relative=world-focus;float rotatedZ=relative.x*sin(camera.x)+relative.z*cos(camera.x);
+ float depth=relative.y*sin(camera.y)+rotatedZ*cos(camera.y)+camera.z;
+ float proximity=smoothstep(80.,260.,depth);
+ light*=edge*silhouette*proximity*(layer<.5?1.95:1.36);light*=exposure;light=light/(vec3(1.)+light*1.2);float opacity=clamp(length(light)*.11,0.,.13);
+ gl_FragColor=vec4(light,opacity);
+ }`;
+ function compile(type,code){const shader=vg.createShader(type);vg.shaderSource(shader,code);vg.compileShader(shader);if(!vg.getShaderParameter(shader,vg.COMPILE_STATUS))throw new Error(vg.getShaderInfoLog(shader));return shader}
+ const program=vg.createProgram();vg.attachShader(program,compile(vg.VERTEX_SHADER,vertex));vg.attachShader(program,compile(vg.FRAGMENT_SHADER,fragment));vg.linkProgram(program);if(!vg.getProgramParameter(program,vg.LINK_STATUS))throw new Error(vg.getProgramInfoLog(program));vg.useProgram(program);
+ const vertices=[],nx=48,ny=44;for(let y=0;y<ny;y++)for(let x=0;x<nx;x++){const u=x/nx*5-2.5,v=y/ny*5-2.5,du=5/nx,dv=5/ny;vertices.push(u,v,u+du,v,u,v+dv,u+du,v,u+du,v+dv,u,v+dv)}
+ const buffer=vg.createBuffer();vg.bindBuffer(vg.ARRAY_BUFFER,buffer);vg.bufferData(vg.ARRAY_BUFFER,new Float32Array(vertices),vg.STATIC_DRAW);const attribute=vg.getAttribLocation(program,'uv');vg.enableVertexAttribArray(attribute);vg.vertexAttribPointer(attribute,2,vg.FLOAT,false,0,0);
+ const names=['time','layer','focus','camera','viewport','focal','sources[0]','colors[0]','embers[0]','patch','pose','patchColor','exposure','idle'],uniforms=Object.fromEntries(names.map(key=>[key,vg.getUniformLocation(program,key)]));vg.enable(vg.BLEND);vg.blendFunc(vg.ONE,vg.ONE);vg.clearColor(0,0,0,0);
+ return ()=>{
+ const ratio=Math.min(devicePixelRatio||1,1),width=Math.round(W*ratio),height=Math.round(H*ratio);if(veil.width!==width||veil.height!==height){veil.width=width;veil.height=height;vg.viewport(0,0,width,height)}
+ membraneEvents=membraneEvents.filter(e=>elapsed-e.at<11);const sources=new Float32Array(32),colors=new Float32Array(32),embers=new Float32Array(32);
+ membraneEvents.forEach((e,i)=>{sources.set([e.x,e.y,e.z,e.at],i*4);colors.set([...lightColor(e.hue),1],i*4)});
+ let selected=0;
+ for(let i=0;i<sparks.length&&selected<8;i+=Math.max(1,Math.floor(sparks.length/90))){const point=sparks[i],contact=membraneContact(point.x,point.y,point.z);if(contact>.3)embers.set([point.x,point.y,point.z,contact*Math.pow(Math.max(0,1-point.age/point.life),1.5)],selected++*4)}
+ vg.clear(vg.COLOR_BUFFER_BIT);vg.uniform1f(uniforms.time,elapsed);vg.uniform3f(uniforms.focus,focusX,focusY,focusZ);vg.uniform4f(uniforms.camera,yaw,pitch,cameraDistance,0);vg.uniform2f(uniforms.viewport,W,H);vg.uniform1f(uniforms.focal,Math.min(W/1000,H/780)*850);vg.uniform4fv(uniforms['sources[0]'],sources);vg.uniform4fv(uniforms['colors[0]'],colors);vg.uniform4fv(uniforms['embers[0]'],embers);
+ // Two faint, camera-facing curves breathe even before any text is entered.
+ vg.uniform1f(uniforms.idle,1);vg.uniform1f(uniforms.exposure,.18);
+ const scale=Math.min(W,H)/480;
+ for(let i=0;i<2;i++){const center=fromCamera((i-.5)*W*.56/scale,Math.sin(elapsed*.024+i*2)*35,100);
+ vg.uniform4f(uniforms.patch,center.x,center.y,center.z,elapsed-3);vg.uniform3f(uniforms.patchColor,.94,.75,.47);vg.uniform1f(uniforms.layer,0);
+ vg.uniform4f(uniforms.pose,.22+i*.25,.18-i*.3, .18+i*.16,i*3.1);vg.drawArrays(vg.TRIANGLES,0,vertices.length/2);}
+ vg.uniform1f(uniforms.idle,0);
+ vg.uniform1f(uniforms.exposure,1./Math.pow(Math.max(1,membraneEvents.length),.28));
+ for(const event of membraneEvents){
+ vg.uniform4f(uniforms.patch,event.x,event.y,event.z,event.at);vg.uniform3fv(uniforms.patchColor,new Float32Array(lightColor(event.hue)));
+ for(let layer=0;layer<3;layer++){const seed=event.seed+layer*2.39996;
+ vg.uniform1f(uniforms.layer,layer);vg.uniform4f(uniforms.pose,Math.sin(seed)*1.25,Math.cos(seed*1.37)*1.35,seed,seed);
+ vg.drawArrays(vg.TRIANGLES,0,vertices.length/2)}
+ }
+ };
+})();
+
+function frame(t){requestAnimationFrame(frame);if(document.hidden){last=t;return}const dt=Math.min((t-last)/1000||.016,.04);last=t;elapsed+=dt;
+if(queue.length&&elapsed>nextLaunch){launch(queue.shift());nextLaunch=elapsed+.85}
+stageBottom=H;stageCenterY=H*.5;
+if(moving){const smooth=1-Math.exp(-dt*1.6),shotAge=Math.max(0,elapsed-shotStart),orbit=Math.min(shotAge/13,1),ease=orbit*orbit*(3-2*orbit);
+ if(shotStart>=0){
+ const targetYaw=shotYaw+ease*Math.PI*.85+pointerX*.045;
+ const returnProgress=Math.max(0,Math.min((shotAge-15)/9,1)),returnEase=returnProgress*returnProgress*(3-2*returnProgress);
+ const targetPitch=(shotPitch+ease*(.66-shotPitch))*(1-returnEase)-.48*returnEase+pointerY*.035;
+ yaw+=(targetYaw-yaw)*smooth;pitch+=(targetPitch-pitch)*smooth;
+ }}
+const framing=cameraFrame(),follow=1-Math.exp(-dt*1.6);
+focusX+=(framing.x-focusX)*follow;focusY+=(framing.y-focusY)*follow;focusZ+=(framing.z-focusZ)*follow;
+// A stable full-bloom envelope prevents zoom pulses during ascent and opening.
+cameraDistance+=(framing.distance-cameraDistance)*(1-Math.exp(-dt*1.6));updateView();
+ctx.globalCompositeOperation='source-over';ctx.fillStyle='#05080e';ctx.fillRect(0,0,W,H);ctx.globalCompositeOperation='lighter';
+for(const star of stars){const p=project(star);if(!p)continue;const alpha=(.12+.07*Math.sin(elapsed*.3+star.phase))*Math.min(1,p.k);ctx.fillStyle=`rgba(137,174,191,${alpha})`;const size=Math.max(.45,p.k*.9);ctx.fillRect(p.x,p.y,size,size)}
+rockets=rockets.filter(r=>{r.age+=dt;const p=Math.min(r.age/r.dur,1),e=p*p*(3-2*p);r.x=r.sx+(r.tx-r.sx)*e+r.bend*Math.sin(p*Math.PI);r.y=r.sy+(r.ty-r.sy)*e;r.z=r.sz+(r.tz-r.sz)*e+Math.sin(p*Math.PI)*60;r.trail.push({x:r.x,y:r.y,z:r.z});if(r.trail.length>150)r.trail.shift();launchRibbon(r);if(p>=1){bloom(r);return false}return true});
+ascentTrails=ascentTrails.filter(r=>{r.age+=dt;if(r.age>1.6)return false;launchRibbon(r,Math.pow(1-r.age/1.6,2));return true});
+sparks=sparks.filter(s=>{s.age+=dt;if(s.age>s.life)return false;const drag=Math.exp(-dt*.4);s.vx*=drag;s.vz*=drag;s.vy=s.vy*drag+dt*4;s.x+=s.vx*dt;s.y+=s.vy*dt;s.z+=s.vz*dt;s.trail.push({x:s.x,y:s.y,z:s.z});if(s.trail.length>40)s.trail.shift();const a=Math.pow(1-Math.max(0,(s.age/s.life-.4)/.6),1.3);const refraction=membraneContact(s.x,s.y,s.z),p=project(s,refraction);if(p&&p.x>-160&&p.x<W+160&&p.y>-160&&p.y<H+160){trace(s.trail,s.hue,a*.78,.63,refraction);const size=Math.max(.5,p.k*(.7+.3*Math.sin(s.age*17+s.seed)));ctx.fillStyle=`hsla(${s.hue},50%,92%,${a*.98})`;ctx.fillRect(p.x,p.y,size,size)}return true});
+letters=letters.filter(l=>{l.age+=dt;if(l.age>6.5)return false;drawWordLight(l);return true});renderMembrane();}
+
+requestAnimationFrame(frame);
+let compositionEndedAt=-Infinity;
+field.addEventListener('compositionstart',()=>{composing=true});
+field.addEventListener('compositionend',()=>{composing=false;compositionEndedAt=performance.now()});
+// Typing and IME confirmation only edit the draft. A separate Enter submits it.
+field.addEventListener('keydown',e=>{
+ if(e.key!=='Enter'||e.repeat)return;
+ if(composing||e.isComposing||e.keyCode===229||performance.now()-compositionEndedAt<100)return;
+ e.preventDefault();if(!field.value.trim())return;
+ addText(field.value);field.value='';lastValue='';
+});
+document.querySelector('#sound').onclick=async()=>{
+ const button=document.querySelector('#sound');button.disabled=true;
+ try{initAudio();await audio.resume();if(!soundOn){button.textContent='音を準備しています';await loadRecordings()}soundOn=!soundOn;master.gain.setTargetAtTime(soundOn?.24:0,audio.currentTime,.1);if(!soundOn)stopSounds();button.textContent=soundOn?'音をとじる ◉':'音をひらく ○';button.setAttribute('aria-pressed',String(soundOn))}
+ catch{button.textContent='音を再読み込み';soundOn=false;button.setAttribute('aria-pressed','false')}finally{button.disabled=false}
+};
+document.querySelector('#demo').onclick=()=>addText('余白に咲く');document.querySelector('#clear').onclick=()=>{membraneEvents=[];stopSounds();rockets=[];ascentTrails=[];sparks=[];letters=[];queue=[];launchIndex=0;shotStart=-100;field.value='';lastValue='';ctx.clearRect(0,0,W,H);document.querySelector('#welcome').classList.remove('gone');document.querySelector('#status').textContent='夜の余白に、ひとひら。'};
+
+</script></html>
