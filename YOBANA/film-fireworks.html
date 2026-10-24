@@ -16,7 +16,7 @@ const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function resize(){W=innerWidth;H=innerHeight;dpr=Math.min(devicePixelRatio||1,2);canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#05080e';ctx.fillRect(0,0,W,H)}addEventListener('resize',resize);resize();
 function hash(s){let h=0;for(const c of s)h=(h*31+c.codePointAt(0))>>>0;return h}
 const activeSounds=new Map(),recordings={};let soundLoading;
-let finalePending=false,finaleQuietSince=-1;const finaleVoices=new Set();
+let finalePending=false,finaleQuietSince=-1,closingPhrase=[];const finaleVoices=new Set();
 const pianoSamples=[{name:'A3',midi:57},{name:'C4',midi:60},{name:'C5',midi:72}];
 function initAudio(){
  if(audio)return;audio=new (window.AudioContext||window.webkitAudioContext)();master=audio.createGain();master.gain.value=.24;
@@ -51,9 +51,28 @@ function cancelFinale(){
  if(audio){const now=audio.currentTime;for(const source of finaleVoices){const gain=activeSounds.get(source);if(gain){if(gain.gain.cancelAndHoldAtTime)gain.gain.cancelAndHoldAtTime(now);else gain.gain.cancelScheduledValues(now);gain.gain.setTargetAtTime(0,now,.08)}try{source.stop(now+.35)}catch{}}}
  finaleVoices.clear();finaleQuietSince=-1;
 }
+// Composed miniature phrases: random selection, never random individual notes.
+const closingMelodies=[
+ {notes:[64,67,74,71],delays:[0,.34,.91,1.64]},
+ {notes:[69,76,74,67],delays:[0,.48,.86,1.72]},
+ {notes:[67,74,76,69],delays:[0,.37,.96,1.78]},
+ {notes:[71,74,69,76],delays:[0,.43,1.02,1.75]},
+ {notes:[64,71,69,74],delays:[0,.36,.94,1.68]},
+ {notes:[74,71,67,69],delays:[0,.46,.98,1.80]}
+];
+let lastClosingMelody=-1;
+function buildClosingMelody(){
+ // Choose another phrase each time, leaving its last interval open in the reverb.
+ const count=closingMelodies.length;
+ let index=Math.floor(Math.random()*(lastClosingMelody<0?count:count-1));
+ if(lastClosingMelody>=0&&index>=lastClosingMelody)index++;
+ lastClosingMelody=index;
+ const phrase=closingMelodies[index];
+ return {notes:phrase.notes.slice(),delays:phrase.delays.slice()};
+}
 function finishPhrase(){
- // One short, resolving phrase after the final flower, followed by silence.
- [64,67,62,60].forEach((note,i)=>pianoNote(note,W/2,[.38,.34,.32,.40][i],[0,.48,1.05,1.85][i],true));
+ const melody=buildClosingMelody();
+ melody.notes.forEach((note,i)=>pianoNote(note,W/2,[.34,.30,.32,.25][i],melody.delays[i],true));
 }
 function updateFinale(){
  if(!finalePending)return;
@@ -64,7 +83,7 @@ function updateFinale(){
 function ascentSound(r){} // Leave the ascent quiet; the piano opens with the flower.
 const segmenter=new Intl.Segmenter('ja',{granularity:'grapheme'});
 function graphemes(text){return Array.from(segmenter.segment(text),part=>part.segment)}
-function addText(text){const chars=graphemes(text).filter(c=>! /\s/.test(c));queue.push(...chars.slice(0,80));queue=queue.slice(-100);if(chars.length){cancelFinale();finalePending=true;document.querySelector('#welcome').classList.add('gone')}}
+function addText(text){const chars=graphemes(text).filter(c=>! /\s/.test(c));queue.push(...chars.slice(0,80));queue=queue.slice(-100);if(chars.length){cancelFinale();closingPhrase=chars.slice(0,80);finalePending=true;document.querySelector('#welcome').classList.add('gone')}}
 // All positions and trails live in world space; the camera projects them anew each frame.
 let moving=!reduced, yaw=0,pitch=-.48,cameraDistance=500,pointerX=0,pointerY=0,dragging=false;
 let focusX=0,focusY=70,focusZ=0,shotStart=-100,shotYaw=0,shotPitch=0;
@@ -300,6 +319,6 @@ document.querySelector('#sound').onclick=async()=>{
  try{initAudio();await audio.resume();if(!soundOn){button.textContent='音を準備しています';await loadRecordings()}soundOn=!soundOn;master.gain.setTargetAtTime(soundOn?.24:0,audio.currentTime,.1);if(!soundOn)stopSounds();button.textContent=soundOn?'音をとじる ◉':'音をひらく ○';button.setAttribute('aria-pressed',String(soundOn))}
  catch{button.textContent='音を再読み込み';soundOn=false;button.setAttribute('aria-pressed','false')}finally{button.disabled=false}
 };
-document.querySelector('#demo').onclick=()=>addText('余白に咲く');document.querySelector('#clear').onclick=()=>{membraneEvents=[];stopSounds();rockets=[];ascentTrails=[];sparks=[];letters=[];queue=[];launchIndex=0;shotStart=-100;field.value='';lastValue='';ctx.clearRect(0,0,W,H);document.querySelector('#welcome').classList.remove('gone');document.querySelector('#status').textContent='夜の余白に、ひとひら。'};
+document.querySelector('#demo').onclick=()=>addText('余白に咲く');document.querySelector('#clear').onclick=()=>{closingPhrase=[];membraneEvents=[];stopSounds();rockets=[];ascentTrails=[];sparks=[];letters=[];queue=[];launchIndex=0;shotStart=-100;field.value='';lastValue='';ctx.clearRect(0,0,W,H);document.querySelector('#welcome').classList.remove('gone');document.querySelector('#status').textContent='夜の余白に、ひとひら。'};
 
 </script></html>
