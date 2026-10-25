@@ -1,0 +1,6 @@
+# Sites checkouts are managed separately from this artwork collection.
+/.sites/
+
+# Local review images and audio from SHIZUKU development.
+/shizuku-*.png
+/shizuku-*.wav
