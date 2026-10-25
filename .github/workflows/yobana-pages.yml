@@ -1,10 +1,11 @@
-# Deploy the adopted artwork only; source history stays in the repository.
-name: Publish YOBANA
+# Keep YOBANA at the existing root URL and publish SHIZUKU alongside it.
+name: Publish WORKS
 on:
   push:
     branches: [main]
     paths:
       - 'YOBANA/**'
+      - 'SHIZUKU/**'
       - '.github/workflows/yobana-pages.yml'
   workflow_dispatch:
 permissions:
@@ -22,13 +23,15 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Prepare adopted artwork
+      - name: Prepare artworks
         run: |
           mkdir -p public/assets/audio/piano public/assets/fonts
           cp YOBANA/film-fireworks.html public/index.html
           cp YOBANA/piano-credits.html public/
           cp YOBANA/assets/audio/piano/* public/assets/audio/piano/
           cp YOBANA/assets/fonts/* public/assets/fonts/
+          mkdir -p public/SHIZUKU
+          cp -R SHIZUKU/. public/SHIZUKU/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

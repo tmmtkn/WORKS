@@ -4,7 +4,9 @@
 
 ## 公開作品
 
-[しずくを開く](https://shizuku-trace-1025.greenhaven20.chatgpt.site/?sound=media)
+[GitHub Pagesでしずくを開く](https://tmmtkn.github.io/WORKS/SHIZUKU/?sound=media)
+
+[Sites版](https://shizuku-trace-1025.greenhaven20.chatgpt.site/?sound=media)
 
 ## 操作
 
@@ -45,4 +47,4 @@ WORKS/
 
 Canvas 2Dで写真内の雫と反応位置を合わせ、波紋と雫同士をつなぐ流れを描画します。音楽のコード進行・和音・終止フレーズは `music.js`、Safari向けのPCM音声生成と再生は `media-audio.js` にあります。写真風の葉の画像は、この作品用にAI生成したものです。
 
-Sitesの管理設定・認証情報・入れ子のGitリポジトリは含みません。GitHub Pagesの既存のYOBANA公開設定は変更していません。
+Sitesの管理設定・認証情報・入れ子のGitリポジトリは含みません。GitHub PagesではYOBANAの既存のルートURLを保ち、しずくは `/WORKS/SHIZUKU/` で公開します。
