@@ -39,11 +39,12 @@ async function testSound(){if(mediaMode){cancelPlayback();muted=false;updateSoun
 function updateSoundButton(){$('#sound').innerHTML=muted?'音なし <span>◖×</span>':'音あり <span>◖))</span>';$('#sound').setAttribute('aria-pressed',muted);$('#sound').setAttribute('aria-label',muted?'音を出す':'音を消す');}
 function tone(midi,time,duration=1.8,level=.12){if(mediaMode){if(!document.body.classList.contains('playing'))mediaEngine.note(midi,Math.max(0,time-audioNow()),duration,level);return;}if(!audio)return;const o=audio.createOscillator(),g=audio.createGain();o.type='sine';o.frequency.value=440*Math.pow(2,(midi-69)/12);g.gain.setValueAtTime(0,time);g.gain.linearRampToValueAtTime(level*.78*Math.pow(.92,Math.max(0,midi-69)/3),time+.09);g.gain.exponentialRampToValueAtTime(.0001,time+duration);o.connect(g);g.connect(master);o.start(time);o.stop(time+duration+.05);voices.push(o);o.onended=()=>{o.disconnect();g.disconnect();voices=voices.filter(v=>v!==o)}}
 const music=ShizukuMusic;
+const flowHarmony=new URLSearchParams(location.search).get('harmony')==='flow';
 let liveChordTimes=[];
 function chord(d){
   if(!audio&&!mediaMode)return;
-  const now=performance.now(),bar=Math.floor((now-origin)/(music.beat*4*1000));
-  const pitches=music.dropChord(d,bar),duration=music.beat*3.2;
+  const now=performance.now();
+  const pitches=flowHarmony?music.flowChord(d,Math.floor((now-origin)/(music.beat*4*1000))):music.dropChord(d),duration=music.beat*3.2;
   // Every touched drop sounds; soften dense overlaps instead of discarding drops.
   liveChordTimes=liveChordTimes.filter(t=>now-t<900);liveChordTimes.push(now);
   const level=.058/Math.sqrt(Math.min(5,liveChordTimes.length));

@@ -3,10 +3,20 @@
   const beat=.75;
   const harmony=[[48,55,59,64],[45,52,55,60],[41,48,52,57],[43,50,57,59]];
   const scale=[60,62,64,67,69,72,74,76,79];
-  function dropChord(drop,bar){
+  function flowChord(drop,bar){
     const pitches=harmony[((bar%harmony.length)+harmony.length)%harmony.length].map(n=>60+((n%12)+12)%12).sort((a,b)=>a-b);
     const inversion=Math.abs(drop.n)%pitches.length;
     for(let k=0;k<inversion;k++)pitches.push(pitches.shift()+12);
+    return pitches;
+  }
+  // A stable identity for each drop, using only C-major pentatonic tones.
+  // Larger photographed drops sound in a lower register; no clock is involved.
+  const dropPalette=[[0,4,7,9],[0,2,7,9],[0,2,4,9],[2,4,7,9],[0,2,4,7]];
+  function dropChord(drop){
+    const seed=Math.abs(Math.round(drop.sx*3+drop.sy*5+drop.sr*7));
+    const base=drop.sr>=38?48:60;
+    const pitches=dropPalette[seed%dropPalette.length].map(n=>base+n);
+    if(Math.floor(seed/dropPalette.length)%2)pitches.push(pitches.shift()+12);
     return pitches;
   }
   function compose(record,drops){
@@ -28,5 +38,5 @@
     bars.push({at:codaStart,notes:[43,50,55,59]},{at:codaStart+3*beat,notes:[48,55,60,64]});
     return {events,bars,codaStart,end};
   }
-  const api={beat,harmony,scale,dropChord,compose};root.ShizukuMusic=api;if(typeof module!=='undefined')module.exports=api;
+  const api={beat,harmony,scale,dropChord,flowChord,compose};root.ShizukuMusic=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof globalThis==='undefined'?this:globalThis);
