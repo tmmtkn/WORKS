@@ -10,10 +10,11 @@ function resize(){w=innerWidth;h=innerHeight;dpr=Math.min(devicePixelRatio||1,2)
 addEventListener('resize',resize);resize();
 // Safari uses ordinary audio files, independent of the Web Audio output path.
 const mediaMode=new URLSearchParams(location.search).get('sound')==='media'||/Safari/.test(navigator.userAgent)&&!/(Chrome|Chromium|CriOS|Edg|OPR)/.test(navigator.userAgent);
-const mediaEngine=new ShizukuMedia.MediaAudio($('#nativeTrack'),message=>{$('#audioReport').textContent=message;$('#audioHelp').open=true;});
+const mediaEngine=new ShizukuMedia.MediaAudio($('#nativeTrack'),message=>showAudioHelp(message));
 function audioNow(){return mediaMode?performance.now()/1000:audio.currentTime;}
 let analyser,audioSamples;
-function audioFailure(){ $('#live').textContent='音を開始できませんでした。下の「音が聞こえないとき」から再生できます。';$('#audioHelp').open=true; }
+function showAudioHelp(message){$('#audioHelp').hidden=false;$('#audioHelp').open=true;$('#audioReport').textContent=message;}
+function audioFailure(){showAudioHelp('音を開始できませんでした。確認音または下の再生ボタンをお試しください。');}
 async function initAudio(){
   if(mediaMode){await mediaEngine.unlock();canvas.dataset.audioState='media-ready';return;}
   if(!audio||audio.state==='closed'){
@@ -23,7 +24,7 @@ async function initAudio(){
     analyser=audio.createAnalyser();analyser.fftSize=256;audioSamples=new Float32Array(analyser.fftSize);
     master.connect(comp);comp.connect(analyser);analyser.connect(audio.destination);
     const delay=audio.createDelay(1);delay.delayTime.value=.31;const wet=audio.createGain();wet.gain.value=.17;master.connect(delay);delay.connect(wet);wet.connect(comp);
-    audio.onstatechange=()=>{canvas.dataset.audioState=audio.state;if(audio.state==='interrupted'||audio.state==='suspended')$('#live').textContent='音が一時停止しています。「音を確かめる」で再開できます。';};
+    audio.onstatechange=()=>{canvas.dataset.audioState=audio.state;if(audio.state==='interrupted'||audio.state==='suspended')showAudioHelp('音が一時停止しています。「音を確かめる」で再開できます。');};
   }
   // Request resumption inside the original user gesture, before any await.
   const resumed=audio.resume();
@@ -34,7 +35,7 @@ async function initAudio(){
   $('#live').textContent='';
 }
 function confirmation(){if(mediaMode){mediaEngine.confirm().catch(audioFailure);return;}const t=audio.currentTime+.03;[60,67,74].forEach((n,i)=>tone(n,t+i*.13,1.3,.13));}
-async function testSound(){if(mediaMode){cancelPlayback();muted=false;updateSoundButton();await mediaEngine.confirm();return;}muted=false;updateSoundButton();await initAudio();master.gain.setTargetAtTime(.9,audio.currentTime,.03);confirmation();}
+async function testSound(){if(mediaMode){cancelPlayback();muted=false;updateSoundButton();await mediaEngine.confirm();$('#audioHelp').hidden=true;return;}muted=false;updateSoundButton();await initAudio();master.gain.setTargetAtTime(.9,audio.currentTime,.03);confirmation();$('#audioHelp').hidden=true;}
 function updateSoundButton(){$('#sound').innerHTML=muted?'音なし <span>◖×</span>':'音あり <span>◖))</span>';$('#sound').setAttribute('aria-pressed',muted);$('#sound').setAttribute('aria-label',muted?'音を出す':'音を消す');}
 function tone(midi,time,duration=1.8,level=.12){if(mediaMode){if(!document.body.classList.contains('playing'))mediaEngine.note(midi,Math.max(0,time-audioNow()),duration,level);return;}if(!audio)return;const o=audio.createOscillator(),g=audio.createGain();o.type='sine';o.frequency.value=440*Math.pow(2,(midi-69)/12);g.gain.setValueAtTime(0,time);g.gain.linearRampToValueAtTime(level*.78*Math.pow(.92,Math.max(0,midi-69)/3),time+.09);g.gain.exponentialRampToValueAtTime(.0001,time+duration);o.connect(g);g.connect(master);o.start(time);o.stop(time+duration+.05);voices.push(o);o.onended=()=>{o.disconnect();g.disconnect();voices=voices.filter(v=>v!==o)}}
 const music=ShizukuMusic;
@@ -51,10 +52,10 @@ function chord(d){
   canvas.dataset.lastChord=pitches.join(',');canvas.dataset.chordsPlayed=String(Number(canvas.dataset.chordsPlayed||0)+1);
 }
 function setStatus(text){$('#status').textContent=text}
-function cancelPlayback(stopVoices=true){if(stopVoices)mediaEngine.stop();playToken++;playTimer.forEach(clearTimeout);playTimer=[];if(stopVoices){voices.forEach(v=>{try{v.stop()}catch{}});voices=[];}document.body.classList.remove('playing')}
+function cancelPlayback(stopVoices=true){$('#replay').hidden=true;if(stopVoices)mediaEngine.stop();playToken++;playTimer.forEach(clearTimeout);playTimer=[];if(stopVoices){voices.forEach(v=>{try{v.stop()}catch{}});voices=[];}document.body.classList.remove('playing')}
 async function begin(){await initAudio();confirmation();started=true;document.body.classList.add('started');setStatus('点をなぞり、指を離すと旋律に。');$('#live').textContent='';}
-$('#start').onclick=()=>begin().catch(()=>{$('#live').textContent='音を開始できませんでした。もう一度お試しください。'});
-function hit(i){if(last===i)return;const now=performance.now();last=i;drops[i].hit=now;record.push({i,at:now,t:(now-origin)/1000});chord(drops[i]);$('#count').textContent=String(record.length).padStart(2,'0')+' / DROPS';$('#clear').disabled=false;$('#finish').disabled=false;setStatus('なぞった道が、音になる。')}
+$('#start').onclick=()=>begin().catch(audioFailure);
+function hit(i){if(last===i)return;const now=performance.now();last=i;drops[i].hit=now;record.push({i,at:now,t:(now-origin)/1000});chord(drops[i]);$('#count').textContent=String(record.length).padStart(2,'0')+' / DROPS';setStatus('なぞった道が、音になる。')}
 function distance(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1)));return {distance:Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy),t}}
 function trace(e){const b={x:e.clientX,y:e.clientY},a=previous||b;drops.map((d,i)=>({i,...distance({x:d.x*w,y:d.y*h},a,b)})).filter(d=>d.distance<Math.max(15,drops[d.i].r*.9)).sort((a,b)=>a.t-b.t).forEach(d=>hit(d.i));previous=b;}
 canvas.onpointerdown=e=>{if(!started)return;keyboardFocus=false;cancelPlayback();drawing=true;record=[];last=null;previous=null;origin=performance.now();liveChordTimes=[];canvas.dataset.chordsPlayed='0';canvas.setPointerCapture(e.pointerId);$('#replay').disabled=true;initAudio().catch(audioFailure);trace(e)};
@@ -65,10 +66,10 @@ canvas.onpointerup=finish;canvas.onpointercancel=finish;canvas.onlostpointercapt
 async function play(){
   if(!record.length)return;
   cancelPlayback(false);const token=playToken,score=music.compose(record,drops),offset=.45;
-  if(mediaMode){$('#nativeTrack').hidden=false;$('#trackLabel').hidden=false;try{await mediaEngine.score(score,music.beat,offset);}catch{audioFailure();$('#audioHelp').open=true;$('#audioReport').textContent='下の再生ボタンから旋律を再生できます。';return;}if(token!==playToken){mediaEngine.stop();return;}}
+  if(mediaMode){$('#nativeTrack').hidden=false;$('#trackLabel').hidden=false;try{await mediaEngine.score(score,music.beat,offset);}catch{audioFailure();showAudioHelp('下の再生ボタンから旋律を再生できます。');return;}if(token!==playToken){mediaEngine.stop();return;}}
   const base=audioNow()+offset;
   canvas.dataset.musicPhase='melody';canvas.dataset.melodyNotes=String(score.events.filter(e=>!e.ending).length);canvas.dataset.endingNotes='4';
-  document.body.classList.add('playing');setStatus('辿った道が、旋律になる。');$('#replay').disabled=true;$('#finish').disabled=true;
+  document.body.classList.add('playing');setStatus('辿った道が、旋律になる。');$('#replay').disabled=true;
   $('#count').textContent='00 / '+String(score.events.length).padStart(2,'0');
   score.bars.forEach(bar=>{
     bar.notes.forEach((n,k)=>tone(n,base+bar.at+k*.045,music.beat*4,.035));
@@ -78,14 +79,13 @@ async function play(){
     tone(e.pitch,base+e.at,e.duration,.16);
     playTimer.push(setTimeout(()=>{if(token!==playToken)return;drops[e.i].hit=performance.now();if(e.ending){canvas.dataset.musicPhase='ending';setStatus('最後のひと節。');}$('#count').textContent=String(k+1).padStart(2,'0')+' / '+String(score.events.length).padStart(2,'0');},(offset+e.at)*1000));
   });
-  playTimer.push(setTimeout(()=>{if(token!==playToken)return;document.body.classList.remove('playing');canvas.dataset.musicPhase='complete';$('#replay').disabled=false;setStatus('ひとつの曲が、生まれました。');},(offset+score.end+.35)*1000));
+  playTimer.push(setTimeout(()=>{if(token!==playToken)return;document.body.classList.remove('playing');canvas.dataset.musicPhase='complete';$('#replay').disabled=false;$('#replay').hidden=false;setStatus('ひとつの曲が、生まれました。');},(offset+score.end+.35)*1000));
 }
-$('#finish').onclick=()=>{if(drawing)finish();else requestPlayback();};
-$('#replay').onclick=()=>requestPlayback();$('#clear').onclick=()=>{cancelPlayback();record=[];last=null;drops.forEach(d=>d.hit=-1e5);$('#count').textContent='00 / DROPS';$('#replay').disabled=true;$('#clear').disabled=true;$('#finish').disabled=true;setStatus('点をなぞり、指を離すと旋律に。')};
-$('#view').onclick=()=>{abstract=!abstract;document.body.classList.toggle('abstract',abstract);$('#view').setAttribute('aria-pressed',abstract);$('#view').textContent=abstract?'点 / 葉':'葉 / 点'};
+function clearGesture(){cancelPlayback();drawing=false;previous=null;record=[];last=null;drops.forEach(d=>d.hit=-1e5);$('#count').textContent='00 / DROPS';$('#replay').disabled=true;setStatus('点をなぞり、指を離すと旋律に。');}
+$('#replay').onclick=()=>requestPlayback();
 $('#sound').onclick=()=>{if(mediaMode){muted=!muted;mediaEngine.setMuted(muted);updateSoundButton();return;}if(muted||!audio||audio.state!=='running'){testSound().catch(audioFailure);return;}muted=true;master.gain.setTargetAtTime(0,audio.currentTime,.05);updateSoundButton();};
 $('#testSound').onclick=()=>testSound().catch(audioFailure);
-canvas.onkeydown=async e=>{if(!started)return;keyboardFocus=true;if(['ArrowRight','ArrowDown','ArrowLeft','ArrowUp',' ','Enter','Escape'].includes(e.key))e.preventDefault();if(e.key.startsWith('Arrow'))focus=(focus+(['ArrowRight','ArrowDown'].includes(e.key)?1:drops.length-1))%drops.length;if(e.key===' '){await initAudio();if(!drawing){cancelPlayback();record=[];origin=performance.now();liveChordTimes=[];canvas.dataset.chordsPlayed='0';last=null;drawing=true}last=null;hit(focus)}if(e.key==='Enter'){if(drawing)finish();else requestPlayback();}if(e.key==='Escape')$('#clear').click()};
+canvas.onkeydown=async e=>{if(!started)return;keyboardFocus=true;if(['ArrowRight','ArrowDown','ArrowLeft','ArrowUp',' ','Enter','Escape'].includes(e.key))e.preventDefault();if(e.key.startsWith('Arrow'))focus=(focus+(['ArrowRight','ArrowDown'].includes(e.key)?1:drops.length-1))%drops.length;if(e.key===' '){await initAudio();if(!drawing){cancelPlayback();record=[];origin=performance.now();liveChordTimes=[];canvas.dataset.chordsPlayed='0';last=null;drawing=true}last=null;hit(focus)}if(e.key==='Enter'){if(drawing)finish();else requestPlayback();}if(e.key==='Escape')clearGesture()};
 // In the leaf view the photograph itself is the instrument. During playback,
 // feathered samples of those same drops remain as the leaf fades away.
 const leafImage=new Image();leafImage.src='assets/leaf.png';

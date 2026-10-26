@@ -12,3 +12,11 @@ footer .controls button{white-space:nowrap}
 #audioHelp{position:fixed;right:4%;bottom:125px;z-index:5;color:#aaa;font:10px sans-serif;letter-spacing:.08em;max-width:320px}#audioHelp[open]{padding:18px;background:rgba(8,12,10,.95);border:1px solid #333}#audioHelp summary{cursor:pointer}#audioHelp p{line-height:1.8}#audioHelp audio{display:block;width:280px;max-width:70vw;height:36px}#audioHelp audio[hidden]{display:none}
 
 .wordmark{display:flex;flex-direction:column;align-items:center;letter-spacing:normal;text-align:center}.wordmark .wordmark-ja{font:inherit;font-size:26px;letter-spacing:.35em;margin-top:0;margin-right:-.35em}.wordmark .wordmark-en{letter-spacing:.45em;margin-right:-.45em}
+
+/* The artwork remains quiet until a finished phrase can be replayed. */
+[hidden]{display:none!important}
+footer{justify-content:center;left:4%;right:4%;gap:0}
+footer #replay{padding:12px 20px;color:#b8bbb6;background:rgba(8,12,10,.35);border-radius:2px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+#audioHelp{bottom:85px}
+#audioHelp #testSound{padding:10px 0;text-decoration:underline;text-underline-offset:4px}
