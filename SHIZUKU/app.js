@@ -99,20 +99,26 @@ leafImage.onload=()=>drops.forEach((d,i)=>{
 });
 // Source-image coordinates keep the wet light attached to the photographed leaf.
 // The main vein and its lateral branches are traced once, never regenerated per frame.
-const veinNodes=[[279,0],[478,79],[715,167],[956,299],[1135,488],[1325,692],[1536,924],[381,173],[498,308],[709,394],[899,510],[1178,664],[1290,828],[938,118],[1104,201],[1216,205],[1348,464],[1478,292],[1221,391],[658,633],[504,473],[329,545],[154,425],[531,707],[318,840],[927,727],[661,872],[1318,923],[84,692],[229,82]];
-const veinLinks=[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[1,7],[7,8],[8,9],[9,10],[10,4],[4,11],[11,12],[12,6],[2,13],[13,14],[14,15],[3,18],[18,16],[16,17],[10,19],[19,20],[20,21],[21,22],[19,23],[23,24],[11,25],[25,26],[12,27],[21,28],[7,29]];
-function buildWetRoutes(drop){
- const distance=veinNodes.map(()=>Infinity),pending=new Set(veinNodes.map((_,i)=>i));
- let nearest=0,min=Infinity;
- veinNodes.forEach(([x,y],i)=>{const d=Math.hypot(x-drop.sx,y-drop.sy);if(d<min){nearest=i;min=d;}});
- distance[nearest]=min*.35;
- while(pending.size){let node=-1;for(const i of pending)if(node<0||distance[i]<distance[node])node=i;pending.delete(node);
-  for(const [a,b]of veinLinks){const next=a===node?b:b===node?a:-1;if(next<0)continue;const len=Math.hypot(veinNodes[a][0]-veinNodes[b][0],veinNodes[a][1]-veinNodes[b][1]);distance[next]=Math.min(distance[next],distance[node]+len);}
- }
- return veinLinks.map(([a,b],i)=>{if(distance[b]<distance[a])[a,b]=[b,a];return {a:veinNodes[a],b:veinNodes[b],distance:distance[a],seed:i};}).filter(e=>e.distance<330);
+const veinNodes=ShizukuVeins.nodes;
+function measuredCurve(points){const lengths=[0];for(let k=1;k<points.length;k++)lengths.push(lengths[k-1]+Math.hypot(points[k][0]-points[k-1][0],points[k][1]-points[k-1][1]));return {points,lengths,len:lengths.at(-1)};}
+const veinEdges=ShizukuVeins.links.map(([a,b],i)=>({a,b,...measuredCurve(ShizukuVeins.curves[i]),seed:i}));
+const veinNeighbors=veinNodes.map(()=>[]);veinEdges.forEach((e,i)=>{veinNeighbors[e.a].push({node:e.b,edge:i});veinNeighbors[e.b].push({node:e.a,edge:i});});
+function curvePoint(curve,t){const at=Math.max(0,Math.min(1,t))*curve.len;let k=1;while(k<curve.lengths.length-1&&curve.lengths[k]<at)k++;const a=curve.points[k-1],b=curve.points[k],f=(at-curve.lengths[k-1])/(curve.lengths[k]-curve.lengths[k-1]||1);return [a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f];}
+function attachDrop(drop){let best={gap:Infinity};veinEdges.forEach((e,edge)=>{for(let k=1;k<e.points.length;k++){const a=e.points[k-1],b=e.points[k],dx=b[0]-a[0],dy=b[1]-a[1],t=Math.max(0,Math.min(1,((drop.sx-a[0])*dx+(drop.sy-a[1])*dy)/(dx*dx+dy*dy||1))),point=[a[0]+dx*t,a[1]+dy*t],gap=Math.hypot(point[0]-drop.sx,point[1]-drop.sy);if(gap<best.gap)best={gap,edge,k,point,along:e.lengths[k-1]+Math.hypot(dx,dy)*t};}});return best;}
+const dropAttachments=drops.map(attachDrop);
+function veinDistances(attachment){
+ const e=veinEdges[attachment.edge],dist=veinNodes.map(()=>Infinity),previous=veinNodes.map(()=>null),pending=new Set(veinNodes.map((_,i)=>i));dist[e.a]=attachment.along;dist[e.b]=e.len-attachment.along;
+ while(pending.size){let at=-1;for(const i of pending)if(at<0||dist[i]<dist[at])at=i;if(at<0||!Number.isFinite(dist[at]))break;pending.delete(at);for(const next of veinNeighbors[at]){const d=dist[at]+veinEdges[next.edge].len;if(d<dist[next.node]){dist[next.node]=d;previous[next.node]={node:at,edge:next.edge};}}}
+ return {dist,previous};
 }
-const wetRoutes=drops.map(buildWetRoutes);
-function wetPoint(edge,t){const dx=edge.b[0]-edge.a[0],dy=edge.b[1]-edge.a[1],len=Math.hypot(dx,dy)||1;const bend=Math.sin(t*Math.PI)*(Math.sin(edge.seed*1.7)*8+Math.sin(t*5+edge.seed)*3);return {x:sceneX+(edge.a[0]+dx*t-dy/len*bend)*sceneScale,y:sceneY+(edge.a[1]+dy*t+dx/len*bend)*sceneScale};}
+const veinSearches=dropAttachments.map(veinDistances);
+const wetRoutes=drops.map((d,i)=>{
+ const attachment=dropAttachments[i],search=veinSearches[i],source=veinEdges[attachment.edge],routes=[];
+ veinEdges.forEach((e,k)=>{if(k===attachment.edge)return;const reverse=search.dist[e.b]<search.dist[e.a],distance=Math.min(search.dist[e.a],search.dist[e.b]);if(distance<330)routes.push({...measuredCurve(reverse?e.points.slice().reverse():e.points),distance,seed:k});});
+ routes.push({...measuredCurve([attachment.point,...source.points.slice(0,attachment.k).reverse()]),distance:0,seed:attachment.edge},{...measuredCurve([attachment.point,...source.points.slice(attachment.k)]),distance:0,seed:attachment.edge});
+ return routes.filter(e=>e.len>1);
+});
+function wetPoint(edge,t){const p=curvePoint(edge,t);return {x:sceneX+p[0]*sceneScale,y:sceneY+p[1]*sceneScale};}
 function ripple(d,i,now){
  const age=(now-d.hit)/1000;if(age<0||age>4.5)return;
  const x=d.x*w,y=d.y*h,r=d.r,breath=(1-Math.exp(-age*8))*Math.exp(-age*1.65);
@@ -121,13 +127,13 @@ function ripple(d,i,now){
  const halo=ctx.createRadialGradient(x-r*.2,y+r*.25,r*.2,x,y,r*2.8);halo.addColorStop(0,`rgba(211,227,215,${breath*.12})`);halo.addColorStop(.45,`rgba(191,211,199,${breath*.045})`);halo.addColorStop(1,'rgba(180,210,192,0)');ctx.fillStyle=halo;ctx.fillRect(x-r*3,y-r*3,r*6,r*6);
  if(sprites[i]){ctx.globalAlpha=breath*.12;ctx.drawImage(sprites[i],x-r*1.16,y-r*1.16,r*2.32,r*2.32);ctx.globalAlpha=1;}
  for(const edge of wetRoutes[i]){
-  const len=Math.hypot(edge.b[0]-edge.a[0],edge.b[1]-edge.a[1]);
+  const len=edge.len,steps=Math.max(2,Math.ceil(len/12));
   // The light follows connected veins, splitting and losing energy with distance.
   const distanceFade=Math.exp(-edge.distance/240),travel=reducedMotion?10000:age*185;
-  for(let j=0;j<18;j++){
-   const t=j/18,arrived=(travel-edge.distance-len*t)/185;if(arrived<0)continue;
+  for(let j=0;j<steps;j++){
+   const t=j/steps,arrived=(travel-edge.distance-len*t)/185;if(arrived<0)continue;
    const local=reducedMotion?breath:(1-Math.exp(-arrived*9))*Math.exp(-arrived*2.5),alpha=local*distanceFade;
-   if(alpha<.008)continue;const p=wetPoint(edge,t),q=wetPoint(edge,(j+1)/18);
+   if(alpha<.008)continue;const p=wetPoint(edge,t),q=wetPoint(edge,(j+1)/steps);
    // Feathered widths catch light like a wet surface, not a neon wire.
    ctx.lineCap='round';ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);
    ctx.strokeStyle=`rgba(188,211,195,${alpha*.075})`;ctx.lineWidth=Math.max(3,8*sceneScale);ctx.shadowBlur=7;ctx.shadowColor=`rgba(186,212,196,${alpha*.12})`;ctx.stroke();
@@ -136,13 +142,16 @@ function ripple(d,i,now){
  }
  ctx.restore();
 }
-function streamPoint(a,b,t,seed,now,branch=0){
-  const ax=a.x*w,ay=a.y*h,bx=b.x*w,by=b.y*h,dx=bx-ax,dy=by-ay,len=Math.hypot(dx,dy)||1;
-  const envelope=Math.sin(Math.PI*t),bend=Math.sin(seed+1.4)*Math.min(65,len*.24);
-  // Smooth branching flow: displacement vanishes at both drop surfaces.
-  const drift=envelope*(bend+Math.sin(t*5.5+seed)*len*.065+Math.sin(t*11-seed+now*.0008)*3+branch*Math.sin(t*8+seed)*8);
-  return {x:ax+dx*t-dy/len*drift,y:ay+dy*t+dx/len*drift};
+const streamCurves=new Map();
+function connectionCurve(a,b){
+ const ai=drops.indexOf(a),bi=drops.indexOf(b),key=ai+':'+bi;if(streamCurves.has(key))return streamCurves.get(key);
+ const from=dropAttachments[ai],to=dropAttachments[bi],source=veinEdges[from.edge],target=veinEdges[to.edge],search=veinSearches[ai];let points=[];
+ if(from.edge===to.edge){const lo=Math.min(from.along,to.along),hi=Math.max(from.along,to.along);points=[from.point,...source.points.filter((_,i)=>source.lengths[i]>lo&&source.lengths[i]<hi),to.point];if(from.along>to.along)points=[from.point,...points.slice(1,-1).reverse(),to.point];}
+ else{let end=search.dist[target.a]+to.along<=search.dist[target.b]+target.len-to.along?target.a:target.b;const trail=[];let node=end;while(search.previous[node]){const prev=search.previous[node],e=veinEdges[prev.edge];trail.unshift(e.a===prev.node?e.points:e.points.slice().reverse());node=prev.node;}
+ points=node===source.a?[from.point,...source.points.slice(0,from.k).reverse()]:[from.point,...source.points.slice(from.k)];for(const part of trail)points.push(...part.slice(1));points.push(...(end===target.a?target.points.slice(1,to.k):target.points.slice(to.k).reverse()),to.point);}
+ const curve=measuredCurve(points);streamCurves.set(key,curve);return curve;
 }
+function streamPoint(a,b,t,seed,now,branch=0){const p=curvePoint(connectionCurve(a,b),t);return {x:sceneX+p[0]*sceneScale,y:sceneY+p[1]*sceneScale};}
 function stream(edge,now){
   const age=now-edge.start;if(age<0||age>edge.duration+3800)return;
   const progress=reducedMotion?1:Math.min(1,age/edge.duration),fade=Math.pow(1-Math.max(0,age-edge.duration)/3800,1.6),a=drops[edge.a],b=drops[edge.b];
