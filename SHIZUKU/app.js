@@ -135,8 +135,8 @@ function ripple(d,i,now){
    if(alpha<.008)continue;const p=wetPoint(edge,t),q=wetPoint(edge,(j+1)/steps);
    // Feathered widths catch light like a wet surface, not a neon wire.
    ctx.lineCap='round';ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);
-   ctx.strokeStyle=`rgba(188,211,195,${alpha*.11})`;ctx.lineWidth=Math.max(3,8*sceneScale);ctx.shadowBlur=7;ctx.shadowColor=`rgba(186,212,196,${alpha*.17})`;ctx.stroke();
-   ctx.shadowBlur=0;ctx.strokeStyle=`rgba(220,233,222,${alpha*.43})`;ctx.lineWidth=Math.max(.4,1.05*sceneScale);ctx.stroke();
+   ctx.strokeStyle=`rgba(188,211,195,${alpha*.145})`;ctx.lineWidth=Math.max(3,8*sceneScale);ctx.shadowBlur=7;ctx.shadowColor=`rgba(186,212,196,${alpha*.22})`;ctx.stroke();
+   ctx.shadowBlur=0;ctx.strokeStyle=`rgba(220,233,222,${alpha*.56})`;ctx.lineWidth=Math.max(.4,1.05*sceneScale);ctx.stroke();
   }
  }
  ctx.restore();
