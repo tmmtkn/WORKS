@@ -5,7 +5,7 @@ let w,h,dpr,started=false,drawing=false,muted=false,abstract=false,audio,master,
 const coords=[[229,82,22],[381,173,43],[498,308,41],[709,394,42],[899,510,42],[1178,664,64],[329,545,65],[154,425,43],[224,514,24],[296,311,23],[504,473,33],[658,633,50],[927,727,37],[318,840,66],[465,945,34],[661,872,42],[1318,923,49],[1432,852,25],[1390,55,42],[1216,205,33],[1104,201,29],[939,118,62],[1111,96,23],[1221,391,29],[1190,316,22],[1348,464,21],[1490,548,20],[1478,292,39],[1277,681,25],[1003,827,28],[531,707,27],[84,692,30],[31,454,20],[377,449,17],[414,455,17],[564,540,15],[281,277,17],[180,594,19],[661,60,26],[1076,38,23],[1336,159,20],[1447,789,17]];
 const notes=[0,2,4,7,9,12,14,16,19];
 const drops=coords.map(([sx,sy,sr],i)=>({sx,sy,sr,x:0,y:0,r:0,n:notes[(i*5+Math.floor(sy/200))%notes.length],hit:-1e5}));
-let sceneScale=1,sceneX=0,sceneY=0,connections=[],sceneOpacity=.75;
+let sceneScale=1,sceneX=0,sceneY=0,sceneOpacity=.75;
 function resize(){w=innerWidth;h=innerHeight;dpr=Math.min(devicePixelRatio||1,2);canvas.width=w*dpr;canvas.height=h*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);sceneScale=Math.max(w/1536,h/1024);sceneX=(w-1536*sceneScale)/2;sceneY=(h-1024*sceneScale)/2;drops.forEach(d=>{d.x=(sceneX+d.sx*sceneScale)/w;d.y=(sceneY+d.sy*sceneScale)/h;d.r=d.sr*sceneScale});}
 addEventListener('resize',resize);resize();
 // Safari uses ordinary audio files, independent of the Web Audio output path.
@@ -51,7 +51,7 @@ function chord(d){
   canvas.dataset.lastChord=pitches.join(',');canvas.dataset.chordsPlayed=String(Number(canvas.dataset.chordsPlayed||0)+1);
 }
 function setStatus(text){$('#status').textContent=text}
-function cancelPlayback(stopVoices=true){if(stopVoices)mediaEngine.stop();connections=[];playToken++;playTimer.forEach(clearTimeout);playTimer=[];if(stopVoices){voices.forEach(v=>{try{v.stop()}catch{}});voices=[];}document.body.classList.remove('playing')}
+function cancelPlayback(stopVoices=true){if(stopVoices)mediaEngine.stop();playToken++;playTimer.forEach(clearTimeout);playTimer=[];if(stopVoices){voices.forEach(v=>{try{v.stop()}catch{}});voices=[];}document.body.classList.remove('playing')}
 async function begin(){await initAudio();confirmation();started=true;document.body.classList.add('started');setStatus('点をなぞり、指を離すと旋律に。');$('#live').textContent='';}
 $('#start').onclick=()=>begin().catch(()=>{$('#live').textContent='音を開始できませんでした。もう一度お試しください。'});
 function hit(i){if(last===i)return;const now=performance.now();last=i;drops[i].hit=now;record.push({i,at:now,t:(now-origin)/1000});chord(drops[i]);$('#count').textContent=String(record.length).padStart(2,'0')+' / DROPS';$('#clear').disabled=false;$('#finish').disabled=false;setStatus('なぞった道が、音になる。')}
@@ -66,11 +66,10 @@ async function play(){
   if(!record.length)return;
   cancelPlayback(false);const token=playToken,score=music.compose(record,drops),offset=.45;
   if(mediaMode){$('#nativeTrack').hidden=false;$('#trackLabel').hidden=false;try{await mediaEngine.score(score,music.beat,offset);}catch{audioFailure();$('#audioHelp').open=true;$('#audioReport').textContent='下の再生ボタンから旋律を再生できます。';return;}if(token!==playToken){mediaEngine.stop();return;}}
-  const base=audioNow()+offset,visualStart=performance.now()+offset*1000;
+  const base=audioNow()+offset;
   canvas.dataset.musicPhase='melody';canvas.dataset.melodyNotes=String(score.events.filter(e=>!e.ending).length);canvas.dataset.endingNotes='4';
   document.body.classList.add('playing');setStatus('辿った道が、旋律になる。');$('#replay').disabled=true;$('#finish').disabled=true;
   $('#count').textContent='00 / '+String(score.events.length).padStart(2,'0');
-  connections=score.events.slice(1).map((e,k)=>({a:score.events[k].i,b:e.i,start:visualStart+score.events[k].at*1000,duration:Math.max(480,(e.at-score.events[k].at)*1000),seed:k*2.399}));
   score.bars.forEach(bar=>{
     bar.notes.forEach((n,k)=>tone(n,base+bar.at+k*.045,music.beat*4,.035));
     [0,2,1,3].forEach((n,k)=>tone(bar.notes[n]+12,base+bar.at+k*music.beat,music.beat*1.6,.028));
@@ -136,39 +135,16 @@ function ripple(d,i,now){
    if(alpha<.008)continue;const p=wetPoint(edge,t),q=wetPoint(edge,(j+1)/steps);
    // Feathered widths catch light like a wet surface, not a neon wire.
    ctx.lineCap='round';ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);
-   ctx.strokeStyle=`rgba(188,211,195,${alpha*.075})`;ctx.lineWidth=Math.max(3,8*sceneScale);ctx.shadowBlur=7;ctx.shadowColor=`rgba(186,212,196,${alpha*.12})`;ctx.stroke();
-   ctx.shadowBlur=0;ctx.strokeStyle=`rgba(220,233,222,${alpha*.29})`;ctx.lineWidth=Math.max(.4,1.05*sceneScale);ctx.stroke();
+   ctx.strokeStyle=`rgba(188,211,195,${alpha*.11})`;ctx.lineWidth=Math.max(3,8*sceneScale);ctx.shadowBlur=7;ctx.shadowColor=`rgba(186,212,196,${alpha*.17})`;ctx.stroke();
+   ctx.shadowBlur=0;ctx.strokeStyle=`rgba(220,233,222,${alpha*.43})`;ctx.lineWidth=Math.max(.4,1.05*sceneScale);ctx.stroke();
   }
  }
  ctx.restore();
-}
-const streamCurves=new Map();
-function connectionCurve(a,b){
- const ai=drops.indexOf(a),bi=drops.indexOf(b),key=ai+':'+bi;if(streamCurves.has(key))return streamCurves.get(key);
- const from=dropAttachments[ai],to=dropAttachments[bi],source=veinEdges[from.edge],target=veinEdges[to.edge],search=veinSearches[ai];let points=[];
- if(from.edge===to.edge){const lo=Math.min(from.along,to.along),hi=Math.max(from.along,to.along);points=[from.point,...source.points.filter((_,i)=>source.lengths[i]>lo&&source.lengths[i]<hi),to.point];if(from.along>to.along)points=[from.point,...points.slice(1,-1).reverse(),to.point];}
- else{let end=search.dist[target.a]+to.along<=search.dist[target.b]+target.len-to.along?target.a:target.b;const trail=[];let node=end;while(search.previous[node]){const prev=search.previous[node],e=veinEdges[prev.edge];trail.unshift(e.a===prev.node?e.points:e.points.slice().reverse());node=prev.node;}
- points=node===source.a?[from.point,...source.points.slice(0,from.k).reverse()]:[from.point,...source.points.slice(from.k)];for(const part of trail)points.push(...part.slice(1));points.push(...(end===target.a?target.points.slice(1,to.k):target.points.slice(to.k).reverse()),to.point);}
- const curve=measuredCurve(points);streamCurves.set(key,curve);return curve;
-}
-function streamPoint(a,b,t,seed,now,branch=0){const p=curvePoint(connectionCurve(a,b),t);return {x:sceneX+p[0]*sceneScale,y:sceneY+p[1]*sceneScale};}
-function stream(edge,now){
-  const age=now-edge.start;if(age<0||age>edge.duration+3800)return;
-  const progress=reducedMotion?1:Math.min(1,age/edge.duration),fade=Math.pow(1-Math.max(0,age-edge.duration)/3800,1.6),a=drops[edge.a],b=drops[edge.b];
-  ctx.save();ctx.lineCap='round';
-  for(let layer=0;layer<3;layer++){
-    ctx.beginPath();for(let j=0;j<=70;j++){const t=progress*j/70,p=streamPoint(a,b,t,edge.seed,now,layer===2?1:0);j?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)}
-    ctx.strokeStyle=`rgba(221,235,225,${fade*[.065,.42,.14][layer]})`;ctx.lineWidth=[7,.8,.5][layer];ctx.shadowColor='rgba(208,227,214,.2)';ctx.shadowBlur=layer===0?10:0;ctx.stroke();
-  }
-  if(progress<1&&!reducedMotion){const p=streamPoint(a,b,progress,edge.seed,now);const glow=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,10);glow.addColorStop(0,'rgba(240,248,239,.55)');glow.addColorStop(1,'rgba(210,230,215,0)');ctx.fillStyle=glow;ctx.fillRect(p.x-10,p.y-10,20,20)}
-  ctx.restore();
 }
 function draw(now){
   requestAnimationFrame(draw);if(now-lastFrame<30)return;lastFrame=now;ctx.clearRect(0,0,w,h);if(analyser){analyser.getFloatTimeDomainData(audioSamples);canvas.dataset.audioLevel=String(Math.sqrt(audioSamples.reduce((sum,x)=>sum+x*x,0)/audioSamples.length));}
   const playing=document.body.classList.contains('playing'),target=abstract?.035:playing?.09:.75;sceneOpacity+=(target-sceneOpacity)*.045;
   drops.forEach((d,i)=>{if(!sprites[i])return;const r=d.r*1.16;ctx.globalAlpha=Math.max(0,.75-sceneOpacity);ctx.drawImage(sprites[i],d.x*w-r,d.y*h-r,r*2,r*2)});ctx.globalAlpha=1;
-  if(playing)connections.forEach(e=>stream(e,now));
-  if(drawing)record.forEach((e,k)=>{if(k)stream({a:record[k-1].i,b:e.i,start:e.at-500,duration:500,seed:k*2.399},now)});
   drops.forEach((d,i)=>{ripple(d,i,now);if(keyboardFocus&&document.activeElement===canvas&&focus===i){ctx.strokeStyle='rgba(230,238,230,.35)';ctx.lineWidth=.7;ctx.beginPath();ctx.ellipse(d.x*w,d.y*h,d.r+7,d.r*.85+7,0,0,Math.PI*2);ctx.stroke()}});
 }
 requestAnimationFrame(draw);
