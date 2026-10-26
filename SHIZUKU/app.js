@@ -97,40 +97,70 @@ leafImage.onload=()=>drops.forEach((d,i)=>{
   g.drawImage(leafImage,d.sx-rr,d.sy-rr,rr*2,rr*2,0,0,192,192);
   g.globalCompositeOperation='destination-in';const mask=g.createRadialGradient(96,96,56,96,96,96);mask.addColorStop(0,'rgba(0,0,0,1)');mask.addColorStop(.68,'rgba(0,0,0,.98)');mask.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=mask;g.fillRect(0,0,192,192);sprites[i]=tile;
 });
-// Light is sampled from image-derived vein pixels, baked once offline.
-// Runtime only crossfades cached frames: no segment strokes, shadows, or invented paths.
-const veinAtlas=new Image();veinAtlas.src='assets/vein-light.webp';
-const wetTile=128,wetFrames=8,wetRadius=260;
-function ripple(d,i,age){
- if(!veinAtlas.complete||!veinAtlas.naturalWidth||age<0||age>4.5)return;
- const life=(1-Math.exp(-age*9))*Math.exp(-age*.9);
- if(life<.015)return;
- const phase=reducedMotion?wetFrames-1:Math.min(wetFrames-1,age*3.3),frame=Math.floor(phase),mix=phase-frame;
- const size=wetRadius*2*sceneScale,x=d.x*w-size/2,y=d.y*h-size/2;
- ctx.globalAlpha=life*.78*(1-mix);ctx.drawImage(veinAtlas,frame*wetTile,i*wetTile,wetTile,wetTile,x,y,size,size);
- if(mix>.015&&frame<wetFrames-1){ctx.globalAlpha=life*.78*mix;ctx.drawImage(veinAtlas,(frame+1)*wetTile,i*wetTile,wetTile,wetTile,x,y,size,size);}
-}
-function wetLight(now,playing){
- if(!veinAtlas.complete||!veinAtlas.naturalWidth)return;
- const ages=drops.map(d=>(now-d.hit)/1000);
- // A recorded connection transfers the same texture-bound light toward the next drop.
- const edges=playing?connections:[];
- for(const e of edges){const elapsed=now-e.start;if(elapsed<0||elapsed>e.duration+2500)continue;
-  const source=elapsed/1000,target=(elapsed-e.duration*.7)/1000;
-  if(source>=0&&source<ages[e.a])ages[e.a]=source;
-  if(target>=0&&target<ages[e.b])ages[e.b]=target;
+// Source-image coordinates keep the wet light attached to the photographed leaf.
+// The main vein and its lateral branches are traced once, never regenerated per frame.
+const veinNodes=[[279,0],[478,79],[715,167],[956,299],[1135,488],[1325,692],[1536,924],[381,173],[498,308],[709,394],[899,510],[1178,664],[1290,828],[938,118],[1104,201],[1216,205],[1348,464],[1478,292],[1221,391],[658,633],[504,473],[329,545],[154,425],[531,707],[318,840],[927,727],[661,872],[1318,923],[84,692],[229,82]];
+const veinLinks=[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[1,7],[7,8],[8,9],[9,10],[10,4],[4,11],[11,12],[12,6],[2,13],[13,14],[14,15],[3,18],[18,16],[16,17],[10,19],[19,20],[20,21],[21,22],[19,23],[23,24],[11,25],[25,26],[12,27],[21,28],[7,29]];
+function buildWetRoutes(drop){
+ const distance=veinNodes.map(()=>Infinity),pending=new Set(veinNodes.map((_,i)=>i));
+ let nearest=0,min=Infinity;
+ veinNodes.forEach(([x,y],i)=>{const d=Math.hypot(x-drop.sx,y-drop.sy);if(d<min){nearest=i;min=d;}});
+ distance[nearest]=min*.35;
+ while(pending.size){let node=-1;for(const i of pending)if(node<0||distance[i]<distance[node])node=i;pending.delete(node);
+  for(const [a,b]of veinLinks){const next=a===node?b:b===node?a:-1;if(next<0)continue;const len=Math.hypot(veinNodes[a][0]-veinNodes[b][0],veinNodes[a][1]-veinNodes[b][1]);distance[next]=Math.min(distance[next],distance[node]+len);}
  }
- const active=ages.map((age,i)=>({age,i})).filter(e=>e.age>=0&&e.age<4.5).sort((a,b)=>a.age-b.age).slice(0,8);
+ return veinLinks.map(([a,b],i)=>{if(distance[b]<distance[a])[a,b]=[b,a];return {a:veinNodes[a],b:veinNodes[b],distance:distance[a],seed:i};}).filter(e=>e.distance<330);
+}
+const wetRoutes=drops.map(buildWetRoutes);
+function wetPoint(edge,t){const dx=edge.b[0]-edge.a[0],dy=edge.b[1]-edge.a[1],len=Math.hypot(dx,dy)||1;const bend=Math.sin(t*Math.PI)*(Math.sin(edge.seed*1.7)*8+Math.sin(t*5+edge.seed)*3);return {x:sceneX+(edge.a[0]+dx*t-dy/len*bend)*sceneScale,y:sceneY+(edge.a[1]+dy*t+dx/len*bend)*sceneScale};}
+function ripple(d,i,now){
+ const age=(now-d.hit)/1000;if(age<0||age>4.5)return;
+ const x=d.x*w,y=d.y*h,r=d.r,breath=(1-Math.exp(-age*8))*Math.exp(-age*1.65);
  ctx.save();ctx.globalCompositeOperation='screen';
- for(const e of active)ripple(drops[e.i],e.i,e.age);
- ctx.restore();canvas.dataset.wetDraws=String(active.length*2);
+ // A broad, faint reflection awakens at the drop; there is no circular outline.
+ const halo=ctx.createRadialGradient(x-r*.2,y+r*.25,r*.2,x,y,r*2.8);halo.addColorStop(0,`rgba(211,227,215,${breath*.12})`);halo.addColorStop(.45,`rgba(191,211,199,${breath*.045})`);halo.addColorStop(1,'rgba(180,210,192,0)');ctx.fillStyle=halo;ctx.fillRect(x-r*3,y-r*3,r*6,r*6);
+ if(sprites[i]){ctx.globalAlpha=breath*.12;ctx.drawImage(sprites[i],x-r*1.16,y-r*1.16,r*2.32,r*2.32);ctx.globalAlpha=1;}
+ for(const edge of wetRoutes[i]){
+  const len=Math.hypot(edge.b[0]-edge.a[0],edge.b[1]-edge.a[1]);
+  // The light follows connected veins, splitting and losing energy with distance.
+  const distanceFade=Math.exp(-edge.distance/240),travel=reducedMotion?10000:age*185;
+  for(let j=0;j<18;j++){
+   const t=j/18,arrived=(travel-edge.distance-len*t)/185;if(arrived<0)continue;
+   const local=reducedMotion?breath:(1-Math.exp(-arrived*9))*Math.exp(-arrived*2.5),alpha=local*distanceFade;
+   if(alpha<.008)continue;const p=wetPoint(edge,t),q=wetPoint(edge,(j+1)/18);
+   // Feathered widths catch light like a wet surface, not a neon wire.
+   ctx.lineCap='round';ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);
+   ctx.strokeStyle=`rgba(188,211,195,${alpha*.075})`;ctx.lineWidth=Math.max(3,8*sceneScale);ctx.shadowBlur=7;ctx.shadowColor=`rgba(186,212,196,${alpha*.12})`;ctx.stroke();
+   ctx.shadowBlur=0;ctx.strokeStyle=`rgba(220,233,222,${alpha*.29})`;ctx.lineWidth=Math.max(.4,1.05*sceneScale);ctx.stroke();
+  }
+ }
+ ctx.restore();
+}
+function streamPoint(a,b,t,seed,now,branch=0){
+  const ax=a.x*w,ay=a.y*h,bx=b.x*w,by=b.y*h,dx=bx-ax,dy=by-ay,len=Math.hypot(dx,dy)||1;
+  const envelope=Math.sin(Math.PI*t),bend=Math.sin(seed+1.4)*Math.min(65,len*.24);
+  // Smooth branching flow: displacement vanishes at both drop surfaces.
+  const drift=envelope*(bend+Math.sin(t*5.5+seed)*len*.065+Math.sin(t*11-seed+now*.0008)*3+branch*Math.sin(t*8+seed)*8);
+  return {x:ax+dx*t-dy/len*drift,y:ay+dy*t+dx/len*drift};
+}
+function stream(edge,now){
+  const age=now-edge.start;if(age<0||age>edge.duration+3800)return;
+  const progress=reducedMotion?1:Math.min(1,age/edge.duration),fade=Math.pow(1-Math.max(0,age-edge.duration)/3800,1.6),a=drops[edge.a],b=drops[edge.b];
+  ctx.save();ctx.lineCap='round';
+  for(let layer=0;layer<3;layer++){
+    ctx.beginPath();for(let j=0;j<=70;j++){const t=progress*j/70,p=streamPoint(a,b,t,edge.seed,now,layer===2?1:0);j?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)}
+    ctx.strokeStyle=`rgba(221,235,225,${fade*[.065,.42,.14][layer]})`;ctx.lineWidth=[7,.8,.5][layer];ctx.shadowColor='rgba(208,227,214,.2)';ctx.shadowBlur=layer===0?10:0;ctx.stroke();
+  }
+  if(progress<1&&!reducedMotion){const p=streamPoint(a,b,progress,edge.seed,now);const glow=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,10);glow.addColorStop(0,'rgba(240,248,239,.55)');glow.addColorStop(1,'rgba(210,230,215,0)');ctx.fillStyle=glow;ctx.fillRect(p.x-10,p.y-10,20,20)}
+  ctx.restore();
 }
 function draw(now){
-  requestAnimationFrame(draw);if(document.hidden||now-lastFrame<30)return;lastFrame=now;ctx.clearRect(0,0,w,h);if(analyser){analyser.getFloatTimeDomainData(audioSamples);canvas.dataset.audioLevel=String(Math.sqrt(audioSamples.reduce((sum,x)=>sum+x*x,0)/audioSamples.length));}
+  requestAnimationFrame(draw);if(now-lastFrame<30)return;lastFrame=now;ctx.clearRect(0,0,w,h);if(analyser){analyser.getFloatTimeDomainData(audioSamples);canvas.dataset.audioLevel=String(Math.sqrt(audioSamples.reduce((sum,x)=>sum+x*x,0)/audioSamples.length));}
   const playing=document.body.classList.contains('playing'),target=abstract?.035:playing?.09:.75;sceneOpacity+=(target-sceneOpacity)*.045;
-  drops.forEach((d,i)=>{if(!sprites[i]||.75-sceneOpacity<.005)return;const r=d.r*1.16;ctx.globalAlpha=Math.max(0,.75-sceneOpacity);ctx.drawImage(sprites[i],d.x*w-r,d.y*h-r,r*2,r*2)});ctx.globalAlpha=1;
-  wetLight(now,playing);
-  drops.forEach((d,i)=>{if(keyboardFocus&&document.activeElement===canvas&&focus===i){ctx.strokeStyle='rgba(230,238,230,.35)';ctx.lineWidth=.7;ctx.beginPath();ctx.ellipse(d.x*w,d.y*h,d.r+7,d.r*.85+7,0,0,Math.PI*2);ctx.stroke()}});
+  drops.forEach((d,i)=>{if(!sprites[i])return;const r=d.r*1.16;ctx.globalAlpha=Math.max(0,.75-sceneOpacity);ctx.drawImage(sprites[i],d.x*w-r,d.y*h-r,r*2,r*2)});ctx.globalAlpha=1;
+  if(playing)connections.forEach(e=>stream(e,now));
+  if(drawing)record.forEach((e,k)=>{if(k)stream({a:record[k-1].i,b:e.i,start:e.at-500,duration:500,seed:k*2.399},now)});
+  drops.forEach((d,i)=>{ripple(d,i,now);if(keyboardFocus&&document.activeElement===canvas&&focus===i){ctx.strokeStyle='rgba(230,238,230,.35)';ctx.lineWidth=.7;ctx.beginPath();ctx.ellipse(d.x*w,d.y*h,d.r+7,d.r*.85+7,0,0,Math.PI*2);ctx.stroke()}});
 }
 requestAnimationFrame(draw);
 
