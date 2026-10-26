@@ -69,3 +69,11 @@ Sitesの管理設定・認証情報・入れ子のGitリポジトリは含みま
 [アンビエント試作](https://tmmtkn.github.io/WORKS/SHIZUKU/ambient.html?sound=media&v=water1) は別ページです。標準ページは変更せず、従来版を `shizuku-keyboard-v1` タグにも保存しています。
 
 短い液体状の発音と減衰する共鳴、左右に広がる残響をPCM音声として生成します。自然音の録音ではなく、雫を連想する合成音です。旋律は間を広げ、最後に三音の余韻を残します。Safariでも通常の音声ファイルで再生します。
+
+### 深い水の録音版（deep2）
+
+ゲーム音に寄ってしまった合成音版を改め、アンビエント試作の音源を実録音の加工へ置き換えました。標準ページは変更していません。`ambient.html?sound=media&v=deep2` で開けます。
+
+音源：Zaziesound, “Water drops 3.wav” (2019), https://freesound.org/people/Zaziesound/sounds/496304/ — CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/)。水を張った器へ雫を落とした録音の一部を、帯域整理・時間伸長・低音化して使用しています。オシレーターによる発音はありません。加工スクリプトは `tools/prepare_water.py`。配布元のHQ MP3を22050HzモノラルPCM16へ変換してから実行します。加工後の実音源は `assets/water/body-c4.wav` です。
+
+以前の合成音による水試作はコミット `3d334c1` に保存しています。
